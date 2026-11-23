@@ -4,3 +4,4 @@ node_modules/
 # Everything company-specific (details, logo, signature, letters, PDFs) lives in company/,
 # which is its own PRIVATE git repo. It must never be part of this public engine repo.
 company/
+dist/skill/

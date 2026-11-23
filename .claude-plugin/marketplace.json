@@ -1,0 +1,21 @@
+{
+  "name": "letterhead-skills",
+  "description": "Letterhead and letter-generator skills: set up a company letterhead, then make numbered letters, declarations and undertakings by chatting.",
+  "owner": {
+    "name": "Ithor Technology LLP",
+    "url": "https://github.com/ithortechnology-code"
+  },
+  "plugins": [
+    {
+      "name": "letterhead",
+      "source": "./",
+      "description": "Set up a company letterhead (logo, details, signature, seal) and generate auto-numbered letters on it as HTML/PDF. Built for Indian business letters; works for any company.",
+      "category": "productivity",
+      "tags": ["letterhead", "letters", "india", "documents"],
+      "skills": [
+        "./.claude/skills/setup-letterhead",
+        "./.claude/skills/new-letter"
+      ]
+    }
+  ]
+}

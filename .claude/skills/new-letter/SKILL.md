@@ -7,6 +7,15 @@ description: Create, revise or rebuild a letter on the company letterhead. Picks
 
 Requires a finished setup. If `company/config.json` is missing, run the `setup-letterhead` skill first.
 
+## Running commands
+Commands in this skill are written for the cloned repo: `npm run <name> -- <args>`. If there is **no `package.json`** in the
+working folder (the skill came from the plugin), run the same thing through the bundled engine, from the user's own folder
+(the one that holds, or will hold, `company/`; never inside the plugin folder):
+`node "${CLAUDE_PLUGIN_ROOT}/dist/letterhead.mjs" --<name> <args>`
+e.g. `npm run new -- slug --template classic` becomes `... --new slug --template classic`; `npm run letter -- <file>` becomes
+`... <file>`; `doctor`, `templates`, `preview`, `approve`, `trim-svg`, `blank`, `all`, `index` keep their name with `--` in
+front. Nothing needs installing in plugin mode.
+
 ## Flow
 1. **Understand.** Minimum needed: who it's to, subject, and what it should say. Ask only for what is missing and can't be
    sensibly inferred, in one short message. Don't ask about things with defaults (date = today, place, signatory).

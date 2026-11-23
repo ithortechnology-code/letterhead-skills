@@ -40,6 +40,7 @@ npm run new -- <slug> --template X --size A5        new letter (auto ref number)
 npm run letter -- company/letters/<f>.md [--open] [--no-pdf]
 npm run approve -- <letter-name>      copy a reviewed letter into approved/ (refuses placeholders and re-approvals)
 npm run all | blank | index | trim-svg
+npm run package    rebuild dist/letterhead.mjs (plugin engine) and dist/letterhead-skill.zip (portable skill). Run and commit after any change to src/, templates/ or fonts/.
 npm run docs        regenerate docs/templates (demo gallery + PNGs, fictional Acme company). Run after changing a template.
 ```
 Needs Node 20+. PDF copies need Chrome/Edge/Brave (set `CHROME_PATH` if installed elsewhere); without it you still get the HTML.

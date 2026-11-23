@@ -16,9 +16,19 @@ import { parseArgs } from 'node:util';
 import { marked } from 'marked';
 import YAML from 'yaml';
 import { sealSvg } from './seal.mjs';
+import { writeZip, collect } from './zip.mjs';
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const COMPANY = process.env.LETTERHEAD_COMPANY_DIR ? path.resolve(process.env.LETTERHEAD_COMPANY_DIR) : path.join(ROOT, 'company'); // override to keep company data elsewhere (the docs build uses examples/acme)
+const SELF = fileURLToPath(import.meta.url);
+const ROOT = path.resolve(path.dirname(SELF), '..');
+// Three ways this runs: from the repo (npm run ...), from the bundled dist/letterhead.mjs (Claude Code plugin), or from a
+// portable skill folder (scripts/letterhead.mjs). Only the repo keeps company data inside itself; installed copies are
+// read-only and get replaced on update, so company data lives in ./company of the folder you work in.
+const FROM_SOURCE = /[\\/]src[\\/]build\.mjs$/.test(SELF);
+const pick = (...c) => c.find((p) => fs.existsSync(p));
+const CSS_DIR = pick(path.join(ROOT, 'src'), path.join(ROOT, 'assets'));
+const FONT_DIR = pick(path.join(ROOT, 'fonts'), path.join(ROOT, 'node_modules', '@fontsource', 'carlito', 'files'));
+const rel = (p) => path.relative(process.cwd(), p) || '.';
+const COMPANY = process.env.LETTERHEAD_COMPANY_DIR ? path.resolve(process.env.LETTERHEAD_COMPANY_DIR) : FROM_SOURCE ? path.join(ROOT, 'company') : path.resolve(process.cwd(), 'company');
 const LETTERS = path.join(COMPANY, 'letters');
 const OUT = path.join(COMPANY, 'generated');   // everything the tool builds (drafts and finals)
 const APPROVED = path.join(COMPANY, 'approved'); // copies the user has signed off (npm run approve)
@@ -83,7 +93,7 @@ function assetUri(rel) {
 }
 
 function fontFaces() {
-  const dir = path.join(ROOT, 'node_modules', '@fontsource', 'carlito', 'files');
+  const dir = FONT_DIR || '';
   return [['400', 'normal'], ['400', 'italic'], ['700', 'normal'], ['700', 'italic']]
     .map(([w, s]) => [w, s, path.join(dir, `carlito-latin-${w}-${s}.woff2`)])
     .filter(([, , f]) => fs.existsSync(f))
@@ -210,9 +220,9 @@ function renderHtml({ meta = {}, body = '' }, { blank = false, look, pdfName = n
     `@page { size: ${sz.w}mm ${sz.h}mm; margin: ${mt}mm 0 ${mb}mm 0; }`,
     `:root{--fs:${sz.fs};--pw:${sz.w}mm;--ph:${sz.h}mm;--mt:${mt}mm;--mr:${mr}mm;--mb:${mb}mm;--ml:${ml}mm;` +
       `--accent:${b.accent};--text:${b.text};--muted:${b.muted};--border:${b.border};--box-border:${b.boxBorder};}`,
-    fs.readFileSync(path.join(ROOT, 'src', 'base.css'), 'utf8'),
+    fs.readFileSync(path.join(CSS_DIR, 'base.css'), 'utf8'),
     fs.readFileSync(look.tpl.css, 'utf8'),
-    fs.readFileSync(path.join(ROOT, 'src', 'screen.css'), 'utf8'), // last: browser-preview overrides
+    fs.readFileSync(path.join(CSS_DIR, 'screen.css'), 'utf8'), // last: browser-preview overrides
   ].join('\n');
 
   // Markers inside the Markdown body:  \pagebreak  (or {{pagebreak}})  and  {{signature}}
@@ -343,7 +353,7 @@ function build(file, { blank = false, open = false, pdf = true, template, size }
   const pdfFile = path.join(outDir, `${name}.pdf`);
   const canPdf = pdf && !!findChrome();
   fs.writeFileSync(htmlFile, renderHtml(letter, { blank, look, pdfName: canPdf ? `${name}.pdf` : null }));
-  console.log(`✓ ${path.relative(ROOT, htmlFile)}`);
+  console.log(`✓ ${rel(htmlFile)}`);
   if (!blank) {
     const fit = measureFit(htmlFile);
     const need = look.sizeKey === 'A4' ? 18 : 6; // A4 letters should also fit US Letter paper (about 18 mm shorter), which Safari often defaults to
@@ -358,7 +368,7 @@ function build(file, { blank = false, open = false, pdf = true, template, size }
       const pdfText = fs.readFileSync(pdfFile).toString('latin1');
       const counts = [...pdfText.matchAll(/\/Type\s*\/Pages[^>]*?\/Count\s+(\d+)/g)].map((m) => +m[1]);
       const pages = counts.length ? Math.max(...counts) : null;
-      console.log(`✓ ${path.relative(ROOT, pdfFile)}${pages ? ` (${pages} page${pages === 1 ? '' : 's'})` : ''}`);
+      console.log(`✓ ${rel(pdfFile)}${pages ? ` (${pages} page${pages === 1 ? '' : 's'})` : ''}`);
     }
     else if (!chromeNoticeShown) { chromeNoticeShown = true; console.log('  (no Chrome/Edge found, so no PDF copy was made. Open the HTML and use the Print button.)'); }
   }
@@ -392,7 +402,7 @@ function scaffold(slug, template, size) {
   const look = resolveLook(template, size);
   const today = new Date().toISOString().slice(0, 10);
   const file = path.join(LETTERS, `${today}-${slug.replace(/[^a-z0-9-]+/gi, '-').toLowerCase()}.md`);
-  if (fs.existsSync(file)) throw new Error(`${path.relative(ROOT, file)} already exists`);
+  if (fs.existsSync(file)) throw new Error(`${rel(file)} already exists`);
   fs.mkdirSync(LETTERS, { recursive: true });
   fs.writeFileSync(file, `---
 ref: ${nextRef()}
@@ -421,7 +431,7 @@ Dear Sir / Madam,
 
 Write the letter here. **Markdown** works: lists, bold, tables.
 `);
-  console.log(`✓ created ${path.relative(ROOT, file)}`);
+  console.log(`✓ created ${rel(file)}`);
 }
 
 // ---------- archive index + approval ----------
@@ -480,7 +490,35 @@ function approve(nameArg, force) {
     else console.warn(`  ! no ${ext.toUpperCase()} to copy (${ext === 'pdf' ? 'Chrome/Edge not found' : 'build failed'})`);
   }
   buildIndex();
-  console.log(`✓ approved: ${path.relative(ROOT, path.join(APPROVED, base))}.pdf`);
+  console.log(`✓ approved: ${rel(path.join(APPROVED, base))}.pdf`);
+}
+
+// ---------- personal skill pack (portable edition) ----------
+// Bundles this skill together with the user's company/ folder into one zip they can upload as their own skill,
+// so company details, assets and the letter register (numbering) survive between chats.
+function pack(outArg) {
+  if (!fs.existsSync(path.join(ROOT, 'SKILL.md'))) throw new Error('--pack runs from the portable skill (the folder with SKILL.md). It packs the skill together with your company/ folder.');
+  const slug = String(config.company.name).toLowerCase().replace(/\b(private|limited|pvt|ltd|llp|inc|llc)\b/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'company';
+  const root = `${slug}-letterhead`;
+  const entries = collect(ROOT, root, (r) => r === 'company' || r.startsWith('company/') || r.startsWith('node_modules') || r.startsWith('.') || r.endsWith('.zip'));
+  const sk = entries.find((e) => e.name === `${root}/SKILL.md`);
+  sk.data = Buffer.from(sk.data.toString('utf8')
+    .replace(/^name:.*$/m, `name: ${root}`)
+    .replace(/^description:.*$/m, `description: Make letters, declarations and undertakings on the ${config.company.name} letterhead (auto-numbered, with optional signature and seal) and keep that letterhead up to date. Use whenever the user wants a letter, declaration, undertaking or authority letter for ${config.company.name}.`));
+  entries.push(...collect(COMPANY, `${root}/company`, (r) => r === 'generated' || r.startsWith('generated/') || r.startsWith('.git') || r === '.DS_Store'));
+  const out = path.resolve(outArg || `${root}.zip`);
+  writeZip(entries, out);
+  console.log(`✓ ${rel(out)}  (${(fs.statSync(out).size / 1024).toFixed(0)} KB, ${entries.length} files)`);
+  console.log('  Upload this zip as your skill (replacing the previous one). It contains your signature image, so keep it private.');
+}
+
+// A personal skill ships a saved company/ folder. Skill folders are read-only, so copy it next to the work on first use.
+function restoreSaved() {
+  const saved = path.join(ROOT, 'company');
+  if (!FROM_SOURCE && !process.env.LETTERHEAD_COMPANY_DIR && !fs.existsSync(COMPANY) && fs.existsSync(path.join(saved, 'config.json'))) {
+    fs.cpSync(saved, COMPANY, { recursive: true });
+    console.log('  (restored your saved company profile from the skill into ./company)');
+  }
 }
 
 // ---------- template preview gallery ----------
@@ -525,7 +563,7 @@ function preview(open, outDir, png) {
 function fit(){document.querySelectorAll('.thumb').forEach(function(t){t.querySelector('iframe').style.transform='scale('+(t.clientWidth/840)+')'})}
 addEventListener('load',fit);addEventListener('resize',fit);
 </script></body></html>`);
-  console.log(`✓ ${path.relative(ROOT, path.join(dir, 'index.html'))}  (${cards.length} templates)`);
+  console.log(`✓ ${rel(path.join(dir, 'index.html'))}  (${cards.length} templates)`);
   if (png) {
     const chrome = findChrome();
     if (!chrome) console.warn('  ! no Chrome/Edge found, so no PNG previews were made');
@@ -534,7 +572,7 @@ addEventListener('load',fit);addEventListener('resize',fit);
       fs.writeFileSync(tmp, fs.readFileSync(path.join(dir, `${t.id}-A4.html`), 'utf8').replace('</head>', '<style>.toolbar{display:none!important}html{background:#fff!important}body{padding:0!important}.sheet{box-shadow:none!important}</style></head>'));
       spawnSync(chrome, ['--headless=new', '--hide-scrollbars', '--force-device-scale-factor=2', '--window-size=794,1123', '--virtual-time-budget=3000', `--screenshot=${path.join(dir, `${t.id}.png`)}`, `file://${tmp}`], { stdio: 'ignore' });
       fs.rmSync(tmp, { force: true });
-      console.log(`✓ ${path.relative(ROOT, path.join(dir, `${t.id}.png`))}`);
+      console.log(`✓ ${rel(path.join(dir, `${t.id}.png`))}`);
     }
   }
   if (open) openFile(path.join(dir, 'index.html'));
@@ -560,7 +598,7 @@ function trimSvg(inFile, outFile) {
   const vb = [x - pad, y - pad, w + 2 * pad, h + 2 * pad].map(r);
   const out = src.replace(/<svg\b[^>]*>/i, (tag) => tag.replace(/\s(viewBox|width|height)="[^"]*"/g, '').replace(/>$/, ` viewBox="${vb.join(' ')}" width="${vb[2]}" height="${vb[3]}">`));
   fs.writeFileSync(outFile, out);
-  console.log(`✓ ${path.relative(ROOT, outFile)}  (canvas ${vb[2]} x ${vb[3]}, was ${(src.match(/viewBox="([^"]*)"/) || [, 'unset'])[1]})`);
+  console.log(`✓ ${rel(outFile)}  (canvas ${vb[2]} x ${vb[3]}, was ${(src.match(/viewBox="([^"]*)"/) || [, 'unset'])[1]})`);
 }
 
 // Problems that make an SVG print badly or are unsafe. Returns { errors: [], warnings: [] }.
@@ -595,7 +633,7 @@ function doctor() {
   for (const k of ['name', 'address']) c[k] ? ok(`company.${k}: ${c[k]}`) : bad(`company.${k} is missing`);
   if (!c.email && !c.phone) warn('no company.email or company.phone: letterheads normally carry contact details');
   for (const k of Object.keys(c.registrations || {})) if (/^LLPNO$/i.test(k)) warn('registration label "LLPNO": the official term is "LLPIN" (check with your CA/CS)');
-  if (!Object.keys(c.registrations || {}).length) warn('no company.registrations (LLPIN / CIN / GSTIN etc.). See .claude/skills/setup-letterhead/india-notes.md');
+  if (!Object.keys(c.registrations || {}).length) warn('no company.registrations (LLPIN / CIN / GSTIN etc.). See india-notes.md in the setup skill');
 
   const logo = cfg.logo && path.resolve(COMPANY, cfg.logo);
   if (!logo || !fs.existsSync(logo)) bad(`logo not found (${cfg.logo}). Put an SVG or PNG in company/assets/`);
@@ -626,7 +664,7 @@ function doctor() {
   ok(`templates: ${listTemplates().map((t) => t.id + (t.custom ? '*' : '')).join(', ')}`);
   findChrome() ? ok('Chrome/Edge found: PDF copies will be created') : warn('no Chrome/Edge found: HTML only (use the Print button for PDFs)');
   fs.existsSync(path.join(COMPANY, '.git')) ? ok('company/ is its own git repo') : warn('company/ is not a git repo yet. Run `git init` inside company/ so letters are versioned (keep it private!)');
-  fs.existsSync(path.join(ROOT, 'node_modules', '@fontsource', 'carlito')) ? ok('fonts installed') : bad('fonts missing. Run `npm install`');
+  FONT_DIR && fs.existsSync(path.join(FONT_DIR, 'carlito-latin-400-normal.woff2')) ? ok('fonts found') : bad('fonts missing (expected a fonts/ folder next to the engine, or run `npm install` in the repo)');
 
   console.log(errors ? `\n${errors} problem(s) to fix.` : '\nAll good.');
   if (errors) process.exitCode = 1;
@@ -637,7 +675,7 @@ const { values: v, positionals: files } = parseArgs({
   allowPositionals: true,
   options: {
     new: { type: 'boolean' }, blank: { type: 'boolean' }, all: { type: 'boolean' }, templates: { type: 'boolean' },
-    doctor: { type: 'boolean' }, approve: { type: 'boolean' }, force: { type: 'boolean' }, index: { type: 'boolean' }, 'trim-svg': { type: 'boolean' }, preview: { type: 'boolean' }, png: { type: 'boolean' }, out: { type: 'string' }, open: { type: 'boolean' }, 'no-pdf': { type: 'boolean' },
+    doctor: { type: 'boolean' }, approve: { type: 'boolean' }, pack: { type: 'boolean' }, force: { type: 'boolean' }, index: { type: 'boolean' }, 'trim-svg': { type: 'boolean' }, preview: { type: 'boolean' }, png: { type: 'boolean' }, out: { type: 'string' }, open: { type: 'boolean' }, 'no-pdf': { type: 'boolean' },
     template: { type: 'string' }, size: { type: 'string' },
   },
 });
@@ -648,12 +686,16 @@ try {
     if (!files[0]) throw new Error('Usage: npm run trim-svg -- <in.svg> [out.svg]');
     trimSvg(path.resolve(files[0]), path.resolve(files[1] || files[0].replace(/\.svg$/i, '.trimmed.svg')));
   } else if (v.doctor) {
+    restoreSaved();
     doctor();
   } else if (v.templates) {
     for (const t of listTemplates()) console.log(`${t.id.padEnd(8)} ${t.title}${t.custom ? ' (company)' : ''}: ${t.description}\n         sizes: ${t.sizes.join(', ')}`);
   } else {
+    restoreSaved();
     loadConfig();
-    if (v.approve) {
+    if (v.pack) {
+      pack(files[0]);
+    } else if (v.approve) {
       if (!files[0]) throw new Error('Usage: npm run approve -- <letter-name>   e.g. 2026-11-23-my-letter');
       approve(files[0], v.force);
     } else if (v.preview) {

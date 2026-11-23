@@ -8,8 +8,17 @@ description: One-time setup of a company's letterhead. Interviews the user for c
 Goal: a working `company/` folder (config, assets, private git repo) and a letterhead the user has approved by eye.
 Be conversational and short. Ask for several things at once, not one by one. Never invent company data.
 
+## Running commands
+Commands in this skill are written for the cloned repo: `npm run <name> -- <args>`. If there is **no `package.json`** in the
+working folder (the skill came from the plugin), run the same thing through the bundled engine, from the user's own folder
+(the one that holds, or will hold, `company/`; never inside the plugin folder):
+`node "${CLAUDE_PLUGIN_ROOT}/dist/letterhead.mjs" --<name> <args>`
+e.g. `npm run new -- slug --template classic` becomes `... --new slug --template classic`; `npm run letter -- <file>` becomes
+`... <file>`; `doctor`, `templates`, `preview`, `approve`, `trim-svg`, `blank`, `all`, `index` keep their name with `--` in
+front. Nothing needs installing in plugin mode.
+
 ## 0. Check the state
-- Run `npm install` if `node_modules/` is missing, then `npm run doctor`.
+- In the cloned repo: run `npm install` if `node_modules/` is missing, then `npm run doctor`. As a plugin there is nothing to install: run the doctor through the bundled engine (see Running commands).
 - If `company/config.json` already exists, read it, show the user a one-line summary, and ask what they want to change
   instead of starting over.
 

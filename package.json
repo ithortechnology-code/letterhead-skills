@@ -13,7 +13,8 @@
     "trim-svg": "node src/build.mjs --trim-svg",
     "preview": "node src/build.mjs --preview",
     "docs": "node --env-file=examples/acme/acme.env src/build.mjs --preview --out docs/templates --png",
-    "approve": "node src/build.mjs --approve"
+    "approve": "node src/build.mjs --approve",
+    "package": "node tools/package.mjs"
   },
   "type": "module",
   "dependencies": {
@@ -25,5 +26,8 @@
   "license": "MIT",
   "engines": {
     "node": ">=20"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.12"
   }
 }

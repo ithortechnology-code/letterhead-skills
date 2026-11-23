@@ -4,6 +4,23 @@ Make a proper company letterhead and generate numbered letters by chatting with 
 Runs entirely on your machine: no server, no cloud, nothing to host. Built with Indian business letters in mind
 (LLPIN / CIN / GSTIN, financial-year numbering, A4/A5), but works for any company.
 
+## Install
+
+**1. Claude Code plugin (no cloning, nothing to install).**
+```
+/plugin marketplace add ithortechnology-code/letterhead-skills
+/plugin install letterhead@letterhead-skills
+```
+Then open Claude Code in the folder where you want your letters to live and say "set up our letterhead". Your company data is
+created in `company/` inside that folder, never inside the plugin.
+
+**2. Claude.ai or ChatGPT (portable skill).** Download [`dist/letterhead-skill.zip`](dist/letterhead-skill.zip) and upload it as a
+skill (Claude.ai: Customize > Skills, with code execution on; ChatGPT: Skills > Create > Upload from your computer). Say "set up
+our letterhead". At the end of each session the skill gives you a personal zip with your company details, assets and the letter
+register inside: upload it to replace the old one and the numbering carries on. It contains your signature image, so keep it private.
+
+**3. Clone this repo** (developers; run `npm install` once).
+
 ## How it works
 
 1. **Clone this repo, open it in Claude Code, run `npm install`.**
@@ -65,7 +82,7 @@ Your private `company/` folder is organised for people, not programmers (see `co
 |---|---|
 | **Claude Code**: terminal, desktop app, web, IDE extensions | Yes. This is what it is built and tested for. |
 | Other coding agents | Probably: the instructions are plain Markdown (`AGENTS.md` points to them). Untested. |
-| Chat-only apps (claude.ai, Claude desktop chat) | Not supported. The tool needs a folder on your computer that persists, Node.js, and the ability to run commands, which a chat session does not give you. |
+| Claude.ai and ChatGPT (upload the portable skill) | Built, **not yet tested** on either. Needs the platform's code execution with Node.js available. Chats don't keep files, so the skill packs your company data into a personal skill zip at the end of each session for you to re-upload. |
 
 ## Commands
 ```
