@@ -1,0 +1,13 @@
+{
+  "name": "letterhead",
+  "displayName": "Letterhead",
+  "description": "Set up a company letterhead (logo, details, signature, seal) and generate auto-numbered letters, declarations and undertakings on it as print-ready HTML and PDF. Built for Indian business letters; works for any company.",
+  "author": {
+    "name": "Ithor Technology LLP",
+    "url": "https://github.com/ithortechnology-code"
+  },
+  "homepage": "https://github.com/ithortechnology-code/letterhead-skills",
+  "repository": "https://github.com/ithortechnology-code/letterhead-skills",
+  "license": "MIT",
+  "keywords": ["letterhead", "letters", "documents", "templates", "india", "pdf", "business"]
+}

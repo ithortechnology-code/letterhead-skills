@@ -1,8 +1,13 @@
 # Letterhead
 
-Make a proper company letterhead and generate numbered letters by chatting with [Claude Code](https://claude.com/claude-code).
-Runs entirely on your machine: no server, no cloud, nothing to host. Built with Indian business letters in mind
-(LLPIN / CIN / GSTIN, financial-year numbering, A4/A5), but works for any company.
+Make a proper company letterhead and generate numbered letters, declarations and undertakings by chatting with
+[Claude Code](https://claude.com/claude-code). You give it your logo, company details and (optionally) signature and seal once;
+after that you just describe the letter you want. You get a print-ready page with a **Print / Save as PDF** button, plus a PDF
+copy, automatic reference numbers, and a separate folder for approved final copies.
+
+Runs entirely on your machine: no server, no cloud account, nothing to host. Built with Indian business letters in mind
+(LLPIN / CIN / GSTIN, financial-year numbering, A4/A5), but works for any company. A portable version for Claude.ai and ChatGPT
+is included (experimental). MIT licensed.
 
 ## Install
 
@@ -95,6 +100,16 @@ npm run approve -- <letter-name>             copy a reviewed letter into company
 npm run all | blank | index
 ```
 Custom looks: copy a folder from `templates/` to `company/templates/<name>/` and edit the CSS.
+
+## Privacy
+
+- **The tool never sends your data anywhere.** The engine makes no network requests, and the pages it generates load nothing
+  from the internet (fonts, logo and signature are embedded). Your company details, logo, signature and letters stay in the
+  `company/` folder on your computer.
+- **The assistant sees what you chat about.** The text of the letters you ask it to write, and files it reads in your folder,
+  are processed by the AI service you use (Claude or ChatGPT) under that service's own terms and privacy settings.
+- **Your signature image is sensitive.** It lives in your private `company/` folder (or, for the portable skill, inside your
+  personal skill zip). Anyone who gets it can place it on a letter. Keep the folder private and limit who has it.
 
 ## Security
 The signature image lives in your private `company/` repo, so anyone with access can issue letters in that person's name.
