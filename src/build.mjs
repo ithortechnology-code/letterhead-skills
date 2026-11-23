@@ -5,7 +5,9 @@
 //   node src/build.mjs --new <slug> [--template X --size A5]
 //   node src/build.mjs company/letters/<file>.md [--open] [--no-pdf]
 //   node src/build.mjs --all | --blank | --index
+//   node src/build.mjs --trim-svg <in.svg> [out.svg]   crop an SVG's canvas tightly to its artwork
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -408,6 +410,42 @@ ${rows.map((r) => `<tr><td>${esc(r.ref)}</td><td>${esc(r.date)}</td><td>${esc(r.
 </tbody></table></main></body></html>`);
 }
 
+// ---------- SVG helpers ----------
+// Crop an SVG's viewBox tightly around its drawing (uses headless Chrome's getBBox). For logos and signatures.
+function trimSvg(inFile, outFile) {
+  const chrome = findChrome();
+  if (!chrome) throw new Error('trim-svg needs Chrome/Edge/Brave (set CHROME_PATH).');
+  const src = fs.readFileSync(inFile, 'utf8');
+  const tmp = path.join(os.tmpdir(), `trim-${process.pid}.html`);
+  fs.writeFileSync(tmp, `<!doctype html><body>${src.replace(/<\?xml[^>]*\?>/, '')}<pre id="r"></pre><script>const b=document.querySelector('svg').getBBox();document.getElementById('r').textContent=JSON.stringify([b.x,b.y,b.width,b.height]);</script></body>`);
+  const res = spawnSync(chrome, ['--headless=new', '--disable-gpu', '--no-first-run', '--virtual-time-budget=2000', '--dump-dom', `file://${tmp}`], { encoding: 'utf8' });
+  fs.rmSync(tmp, { force: true });
+  const m = (res.stdout || '').match(/<pre id="r">(\[[^<]*\])<\/pre>/);
+  if (!m) throw new Error('Could not measure the SVG. Is it a valid SVG?');
+  const [x, y, w, h] = JSON.parse(m[1]);
+  if (!(w > 0 && h > 0)) throw new Error('The SVG has no visible drawing to crop to.');
+  const sw = Math.max(0, ...[...src.matchAll(/stroke-width="([\d.]+)"/g)].map((k) => +k[1]));
+  const pad = sw / 2 + 0.02 * Math.max(w, h);
+  const r = (n) => +n.toFixed(2);
+  const vb = [x - pad, y - pad, w + 2 * pad, h + 2 * pad].map(r);
+  const out = src.replace(/<svg\b[^>]*>/i, (tag) => tag.replace(/\s(viewBox|width|height)="[^"]*"/g, '').replace(/>$/, ` viewBox="${vb.join(' ')}" width="${vb[2]}" height="${vb[3]}">`));
+  fs.writeFileSync(outFile, out);
+  console.log(`✓ ${path.relative(ROOT, outFile)}  (canvas ${vb[2]} x ${vb[3]}, was ${(src.match(/viewBox="([^"]*)"/) || [, 'unset'])[1]})`);
+}
+
+// Problems that make an SVG print badly or are unsafe. Returns { errors: [], warnings: [] }.
+function checkSvg(file) {
+  const t = fs.readFileSync(file, 'utf8');
+  const errors = [], warnings = [];
+  if (!/<svg\b/i.test(t)) errors.push('not an SVG file');
+  if (/<script\b|\son[a-z]+\s*=/i.test(t)) errors.push('contains script/event handlers; remove them');
+  if (!/viewBox=/i.test(t) && !/<svg[^>]*\swidth=/i.test(t)) errors.push('no viewBox or width/height; it will not scale');
+  if (/<image\b/i.test(t)) warnings.push('embeds a bitmap (<image>), so it is not a true vector and may print blurry');
+  if (/<rect\b[^>]*fill="(#fff(fff)?|white)"/i.test(t)) warnings.push('has a white background rectangle; delete it for a transparent background');
+  if (t.length > 1_000_000) warnings.push('file is over 1 MB; simplify it');
+  return { errors, warnings };
+}
+
 // ---------- doctor ----------
 function pngWidth(file) {
   const b = fs.readFileSync(file);
@@ -432,7 +470,10 @@ function doctor() {
   const logo = cfg.logo && path.resolve(COMPANY, cfg.logo);
   if (!logo || !fs.existsSync(logo)) bad(`logo not found (${cfg.logo}). Put an SVG or PNG in company/assets/`);
   else if (path.extname(logo).toLowerCase() === '.pdf') bad('logo is a PDF. Export as SVG or PNG.');
-  else ok(`logo: ${cfg.logo}`);
+  else {
+    ok(`logo: ${cfg.logo}`);
+    if (/\.svg$/i.test(logo)) { const r = checkSvg(logo); r.errors.forEach((m) => bad(`logo: ${m}`)); r.warnings.forEach((m) => warn(`logo: ${m}`)); }
+  }
 
   const people = Object.entries(cfg.signatories || {});
   if (!people.length) warn('no signatories configured');
@@ -441,8 +482,14 @@ function doctor() {
     const f = p.signature && path.resolve(COMPANY, p.signature);
     if (!f || !fs.existsSync(f)) { warn(`signatory "${key}": signature file not found (${p.signature}). Letters with sign: true will leave blank space`); continue; }
     if (path.extname(f).toLowerCase() === '.pdf') { bad(`signatory "${key}": signature is a PDF. Export as transparent PNG.`); continue; }
+    if (/\.svg$/i.test(f)) {
+      const r = checkSvg(f);
+      r.errors.forEach((m) => bad(`signatory "${key}": signature ${m}`)); r.warnings.forEach((m) => warn(`signatory "${key}": signature ${m}`));
+      if (!r.errors.length) ok(`signature (${key}): ${p.signature} (SVG)`);
+      continue;
+    }
     const w = path.extname(f).toLowerCase() === '.png' ? pngWidth(f) : null;
-    w && w < 500 ? warn(`signatory "${key}": signature image is only ${w}px wide and will print blurry. Use at least 800px.`) : ok(`signature (${key}): ${p.signature}`);
+    w && w < 500 ? warn(`signatory "${key}": signature image is only ${w}px wide and will print blurry. Use at least 800px or an SVG.`) : ok(`signature (${key}): ${p.signature}`);
   }
 
   try { ok(`default look: ${resolveLook().id} / ${resolveLook().sizeKey}`); } catch (e) { bad(e.message); }
@@ -460,14 +507,17 @@ const { values: v, positionals: files } = parseArgs({
   allowPositionals: true,
   options: {
     new: { type: 'boolean' }, blank: { type: 'boolean' }, all: { type: 'boolean' }, templates: { type: 'boolean' },
-    doctor: { type: 'boolean' }, index: { type: 'boolean' }, open: { type: 'boolean' }, 'no-pdf': { type: 'boolean' },
+    doctor: { type: 'boolean' }, index: { type: 'boolean' }, 'trim-svg': { type: 'boolean' }, open: { type: 'boolean' }, 'no-pdf': { type: 'boolean' },
     template: { type: 'string' }, size: { type: 'string' },
   },
 });
 const opts = { open: v.open, pdf: !v['no-pdf'], template: v.template, size: v.size };
 
 try {
-  if (v.doctor) {
+  if (v['trim-svg']) {
+    if (!files[0]) throw new Error('Usage: npm run trim-svg -- <in.svg> [out.svg]');
+    trimSvg(path.resolve(files[0]), path.resolve(files[1] || files[0].replace(/\.svg$/i, '.trimmed.svg')));
+  } else if (v.doctor) {
     doctor();
   } else if (v.templates) {
     for (const t of listTemplates()) console.log(`${t.id.padEnd(8)} ${t.title}${t.custom ? ' (company)' : ''}: ${t.description}\n         sizes: ${t.sizes.join(', ')}`);
@@ -485,7 +535,7 @@ try {
     } else if (files.length) {
       files.forEach((f) => build(path.resolve(f), opts));
     } else {
-      console.log('Usage: npm run letter -- company/letters/<file>.md [--open] [--no-pdf] [--template X] [--size A5]\n       npm run new -- <slug> [--template X] [--size A5]\n       npm run doctor | templates | blank | all | index');
+      console.log('Usage: npm run letter -- company/letters/<file>.md [--open] [--no-pdf] [--template X] [--size A5]\n       npm run new -- <slug> [--template X] [--size A5]\n       npm run doctor | templates | blank | all | index | trim-svg');
     }
   }
 } catch (e) {

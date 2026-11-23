@@ -9,7 +9,8 @@
     "letter": "node src/build.mjs",
     "blank": "node src/build.mjs --blank",
     "all": "node src/build.mjs --all",
-    "index": "node src/build.mjs --index"
+    "index": "node src/build.mjs --index",
+    "trim-svg": "node src/build.mjs --trim-svg"
   },
   "type": "module",
   "dependencies": {

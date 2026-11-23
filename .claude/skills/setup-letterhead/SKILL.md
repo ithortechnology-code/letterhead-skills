@@ -30,10 +30,12 @@ Ask for, and wait for answers:
 ## 2. Assets
 Tell the user to put these in `company/assets/` (create it if needed) and wait until they confirm:
 - `logo.svg` (best) or `logo.png`: transparent background, tightly cropped (little empty space around the mark).
-- `signature.png`: signature on a transparent or white background, at least 800 px wide, cropped tight.
-  Skip if the company doesn't want signature images.
-PDF files are not supported. Ask for SVG/PNG instead. If the logo SVG has lots of empty space, make a cropped copy by
-adjusting its `viewBox` (keep the original in `company/assets/source/`).
+- `signature.svg` (preferred) or `signature.png`: transparent background. Skip if the company doesn't want signature images.
+  Walk the user through `signature-svg.md` (in this skill's folder): get an SVG from a free AI tool or by tracing their scan,
+  save it, run `npm run trim-svg`, then `npm run doctor`. Say plainly that an AI redraw is an approximation and that
+  banks/authorities comparing against a specimen need a faithful trace or a clean scan of the real signature.
+  For PNG, at least 800 px wide, cropped tight.
+PDF files are not supported. Ask for SVG/PNG instead. If the logo SVG has lots of empty space, run `npm run trim-svg -- <in> <out>` to crop it (keep the original in `company/assets/source/`).
 For "pick from my logo": read the SVG's fill colours and propose the strongest one as `brand.accent`.
 
 ## 3. Write the config

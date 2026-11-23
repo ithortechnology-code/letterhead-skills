@@ -8,7 +8,7 @@ Runs entirely on your machine: no server, no cloud, nothing to host. Built with 
 
 1. **Clone this repo, open it in Claude Code, run `npm install`.**
 2. **Say "set up our letterhead".** The `setup-letterhead` skill asks for your company details, asks you to drop
-   `logo.svg` and `signature.png` into `company/assets/`, builds three looks (boxed, modern, plain) for you to pick from,
+   `logo.svg` and `signature.svg` (a PNG works too; see `.claude/skills/setup-letterhead/signature-svg.md` for getting an SVG) into `company/assets/`, builds three looks (boxed, modern, plain) for you to pick from,
    and creates a private git repo in `company/` for your data.
 3. **Then just ask for letters.** "Letter to the bank manager asking to update our signatory, with signature."
    The `new-letter` skill numbers it (`ACME/2026-27/004`), writes it, and opens it in your browser.

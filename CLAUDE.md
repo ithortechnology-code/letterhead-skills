@@ -25,7 +25,8 @@ Markdown letters and builds self-contained HTML (with a Print / Save as PDF butt
 - **Never commit company data to the engine repo.** `company/` stays out of it. Commit letters inside `company/` only, and only when asked.
   Never create or push to a remote without being asked.
 - Don't edit `src/` or `templates/` to suit one company. Use `company/config.json`, or a copy under `company/templates/`.
-- Assets must be SVG or PNG (transparent background). PDFs are not supported.
+- Assets must be SVG (preferred) or PNG with a transparent background. PDFs are not supported. `npm run trim-svg` crops an SVG's
+  canvas; `npm run doctor` checks assets. See `.claude/skills/setup-letterhead/signature-svg.md` for getting a signature as SVG.
 - Printing: A4/A5 at Scale 100%, Margins "Default", Headers and footers off. Never "Fit to page".
 
 ## Commands
@@ -35,6 +36,6 @@ npm run doctor                                      check setup
 npm run templates                                   list looks and sizes
 npm run new -- <slug> --template X --size A5        new letter (auto ref number)
 npm run letter -- company/letters/<f>.md [--open] [--no-pdf]
-npm run all | blank | index
+npm run all | blank | index | trim-svg
 ```
 Needs Node 20+. PDF copies need Chrome/Edge/Brave (set `CHROME_PATH` if installed elsewhere); without it you still get the HTML.
