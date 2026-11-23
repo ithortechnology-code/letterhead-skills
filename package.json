@@ -1,0 +1,25 @@
+{
+  "name": "letterhead",
+  "version": "1.0.0",
+  "description": "Local, agent-driven letterhead and letter generator",
+  "scripts": {
+    "doctor": "node src/build.mjs --doctor",
+    "templates": "node src/build.mjs --templates",
+    "new": "node src/build.mjs --new",
+    "letter": "node src/build.mjs",
+    "blank": "node src/build.mjs --blank",
+    "all": "node src/build.mjs --all",
+    "index": "node src/build.mjs --index"
+  },
+  "type": "module",
+  "dependencies": {
+    "@fontsource/carlito": "^5.3.0",
+    "marked": "^15.0.12",
+    "yaml": "^2.9.1"
+  },
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  }
+}
