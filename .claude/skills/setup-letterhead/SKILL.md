@@ -39,13 +39,13 @@ PDF files are not supported. Ask for SVG/PNG instead. If the logo SVG has lots o
 For "pick from my logo": read the SVG's fill colours and propose the strongest one as `brand.accent`.
 
 ## 3. Write the config
-`mkdir -p company/assets company/letters company/out`, copy `starter/config.example.json` to `company/config.json`, and
+`mkdir -p company/assets company/letters company/generated company/approved` and copy `starter/START-HERE.md` to `company/START-HERE.md`, copy `starter/config.example.json` to `company/config.json`, and
 fill in every field from the answers (keep the structure; `registrations` is an ordered label → value map shown in the
 header and footer). Remove fields that don't apply. Then `npm run doctor` and fix anything it reports.
 
 ## 4. Generate and review the templates
-- `npm run blank -- --template boxed`, then `modern`, then `plain`. Open each with
-  `npm run blank -- --template <id> --open` (HTML opens in the browser) and ask the user which they prefer.
+- `npm run preview -- --open` builds a sample letter in every template and size and opens a gallery in the browser.
+  Ask the user which look they prefer. (`npm run blank` makes empty letterheads, but `stationery` has no header so looks empty.)
 - Check the result yourself first: header fits on one line, logo not tiny, nothing clipped. If it is wrong, adjust
   `company/config.json` (colours, text) before touching CSS.
 - Custom design requests ("make the header bigger", "put the logo on the right"): copy the closest built-in template to
@@ -63,5 +63,5 @@ header and footer). Remove fields that don't apply. Then `npm run doctor` and fi
 
 ## 6. Hand over
 Summarise in 5 lines what exists and how to make a letter: "Just tell me who it's for and what it should say, e.g.
-'a letter to the bank manager asking for ...'". Mention the `index.html` archive in `company/out/` and the print tip
+'a letter to the bank manager asking for ...'". Mention the `index.html` archive in `company/generated/` and the print tip
 (Margins Default, Scale 100%, Headers and footers off).

@@ -1,0 +1,31 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ACME TECHNOLOGIES PRIVATE LIMITED - Templates</title>
+<style>
+ body{font:15px/1.5 -apple-system,'Segoe UI',Roboto,sans-serif;margin:0;background:#eef0f4;color:#1f2328}
+ main{max-width:1280px;margin:0 auto;padding:28px 20px}
+ h1{font-size:20px;margin:0 0 4px} .sub{color:#5b6472;margin:0 0 22px}
+ .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:22px}
+ .card{background:#fff;border:1px solid #dde1e7;border-radius:10px;padding:16px}
+ .card h2{font-size:16px;margin:0 0 2px} .card p{margin:0 0 12px;color:#5b6472;font-size:13px;min-height:58px}
+ .thumb{width:100%;aspect-ratio:840/1240;border:1px solid #dde1e7;border-radius:6px;overflow:hidden;position:relative;background:#e6e9ef}
+ .thumb iframe{position:absolute;top:0;left:0;width:840px;height:1240px;border:0;transform-origin:0 0;pointer-events:none}
+ .links{margin-top:12px} .links a{display:inline-block;margin-right:8px;padding:6px 12px;border-radius:6px;background:#0b5fff;color:#fff;text-decoration:none;font-weight:600;font-size:13px}
+ .links a.alt{background:#fff;color:#0b5fff;border:1px solid #0b5fff;padding:5px 11px}
+</style></head><body><main>
+<h1>ACME TECHNOLOGIES PRIVATE LIMITED - Letter templates</h1>
+<p class="sub">Sample letter in each look. Click to open full size (with the Print / Save as PDF button). Default: <b>classic</b>. Use one with <code>--template &lt;id&gt;</code>.</p>
+<div class="grid"><div class="card"><h2>Boxed <span style="color:#8a94a6;font-weight:400">(boxed)</span></h2><p>Formal framed header (logo, registration numbers, contact box) and a framed signature box. For official letters, undertakings and declarations where a traditional boxed look is wanted.</p>
+<div class="thumb"><iframe src="boxed-A4.html" loading="lazy" tabindex="-1" title="Boxed"></iframe></div>
+<div class="links"><a class="" href="boxed-A4.html">A4</a><a class="alt" href="boxed-A5.html">A5</a></div></div><div class="card"><h2>Classic <span style="color:#8a94a6;font-weight:400">(classic)</span></h2><p>No boxes or frames. A thin double rule under the header, a hairline footer rule and a single rule above the signature, all in the company's accent colour. Default for formal business letters.</p>
+<div class="thumb"><iframe src="classic-A4.html" loading="lazy" tabindex="-1" title="Classic"></iframe></div>
+<div class="links"><a class="" href="classic-A4.html">A4</a><a class="alt" href="classic-A5.html">A5</a></div></div><div class="card"><h2>Modern <span style="color:#8a94a6;font-weight:400">(modern)</span></h2><p>Open header with a thick accent-colour rule top and bottom and a minimal signature block. Good for proposals, quotations and business correspondence.</p>
+<div class="thumb"><iframe src="modern-A4.html" loading="lazy" tabindex="-1" title="Modern"></iframe></div>
+<div class="links"><a class="" href="modern-A4.html">A4</a><a class="alt" href="modern-A5.html">A5</a></div></div><div class="card"><h2>Plain (black and white) <span style="color:#8a94a6;font-weight:400">(plain)</span></h2><p>Black-and-white letterhead with the full header and footer, as a photocopy or scan of the printed letterhead would look. No colour anywhere; logo, seal and stamp are forced to black and white. Good for photocopying, faxing and mono printers.</p>
+<div class="thumb"><iframe src="plain-A4.html" loading="lazy" tabindex="-1" title="Plain (black and white)"></iframe></div>
+<div class="links"><a class="" href="plain-A4.html">A4</a><a class="alt" href="plain-A5.html">A5</a></div></div><div class="card"><h2>Stationery (pre-printed paper) <span style="color:#8a94a6;font-weight:400">(stationery)</span></h2><p>No header or footer, just generous top and bottom space. Use when printing on pre-printed company letterhead paper.</p>
+<div class="thumb"><iframe src="stationery-A4.html" loading="lazy" tabindex="-1" title="Stationery (pre-printed paper)"></iframe></div>
+<div class="links"><a class="" href="stationery-A4.html">A4</a><a class="alt" href="stationery-A5.html">A5</a></div></div></div>
+</main><script>
+function fit(){document.querySelectorAll('.thumb').forEach(function(t){t.querySelector('iframe').style.transform='scale('+(t.clientWidth/840)+')'})}
+addEventListener('load',fit);addEventListener('resize',fit);
+</script></body></html>

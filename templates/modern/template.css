@@ -14,8 +14,8 @@
 .page-footer b { color: #1d1f23; }
 .page-footer .dot { margin: 0 1.6mm; color: var(--accent); }
 
-.header-space { height: 25mm; }
-.footer-space { height: 14mm; }
+.header-space { height: 24mm; }
+.footer-space { height: 10mm; }
 
 .sigbox { width: 70mm; border-top: 0.8pt solid var(--accent); padding: 2.5mm 2mm 0; }
 .sig-for { font-size: 9.5pt; }
@@ -32,8 +32,8 @@ html[data-size="A5"] .regs, html[data-size="A5"] .web { font-size: 7pt; }
 html[data-size="A5"] .hright { font-size: 6.8pt; }
 html[data-size="A5"] .hright .addr { font-size: 6.5pt; }
 html[data-size="A5"] .page-footer { font-size: 6.3pt; }
-html[data-size="A5"] .header-space { height: 21mm; }
-html[data-size="A5"] .footer-space { height: 15mm; }
+html[data-size="A5"] .header-space { height: 19.5mm; }
+html[data-size="A5"] .footer-space { height: 12mm; }
 html[data-size="A5"] .closing-left { font-size: 0.82em; padding-right: 3mm; }
 html[data-size="A5"] .sigbox { width: 58mm; }
 html[data-size="A5"] .sig-area { height: 17mm; }

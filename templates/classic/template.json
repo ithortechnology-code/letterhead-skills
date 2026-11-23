@@ -1,0 +1,5 @@
+{
+  "title": "Classic",
+  "description": "No boxes or frames. A thin double rule under the header, a hairline footer rule and a single rule above the signature, all in the company's accent colour. Default for formal business letters.",
+  "sizes": ["A4", "A5"]
+}

@@ -1,0 +1,46 @@
+{
+  "company": {
+    "name": "ACME TECHNOLOGIES PRIVATE LIMITED",
+    "address": "12 Example Road, Pune 411001, Maharashtra, India",
+    "email": "hello@example.com",
+    "phone": "+91 98765 43210",
+    "website": "https://example.com",
+    "registrations": {
+      "CIN": "U00000MH2020PTC000000",
+      "GSTIN": "27AAAAA0000A1Z5"
+    }
+  },
+  "logo": "assets/logo.svg",
+  "brand": {
+    "accent": "#0E7C86",
+    "text": "#1F2328",
+    "muted": "#5B6472",
+    "border": "#2B2F36",
+    "boxBorder": "#8A94A6"
+  },
+  "refPrefix": "ACME",
+  "refScheme": "fy",
+  "place": "Pune, India",
+  "defaultTemplate": "classic",
+  "defaultSize": "A4",
+  "watermark": false,
+  "seal": {
+    "shape": "both",
+    "color": "#1F3A93",
+    "bottomText": "AUTHORISED SIGNATORY",
+    "centerText": "★",
+    "centerSubText": "PUNE",
+    "square": {
+      "showName": false,
+      "border": false
+    }
+  },
+  "signatories": {
+    "default": {
+      "name": "Asha Verma",
+      "designation": "Director",
+      "role": "Authorised Signatory",
+      "signature": "assets/signature.svg"
+    }
+  }
+}

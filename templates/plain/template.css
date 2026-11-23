@@ -1,21 +1,51 @@
-/* PLAIN — no printed header/footer; leaves clear space for pre-printed letterhead paper. */
-.page-header { display: none; }
-.page-footer { visibility: hidden; border-top-color: transparent; }   /* keep footer geometry so page marks line up */
-.page-footer .page-marks { visibility: visible; }
-.header-space { height: 38mm; }   /* adjust to match your pre-printed paper */
-.footer-space { height: 22mm; }
+/* PLAIN — black and white, like a photocopy or scan of the printed letterhead. No colour anywhere, no boxes. */
+:root { --accent: #000; --text: #000; --muted: #333; --border: #000; --box-border: #000; --rule: #9a9a9a; }
 
-.sigbox { width: 70mm; padding: 2mm; }
+/* logo, seals and stamps are forced to black and white */
+.logo, .watermark { filter: grayscale(1) contrast(1.8); }
+.seal, .mark-seal, .stamp-round { filter: grayscale(1) brightness(0.15); }
+.stamp { --seal: #000 !important; }
+
+.page-header { position: fixed; top: 0; left: 0; right: 0; }
+.hbox { position: relative; display: flex; align-items: flex-end; justify-content: space-between; padding-bottom: 2.8mm; border-bottom: 1.4pt solid #000; }
+.hbox::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1.5mm; border-bottom: 0.5pt solid #000; }
+.hleft { display: flex; align-items: center; gap: 3.5mm; line-height: 1.25; }
+.logo { height: 14mm; width: auto; max-width: 30mm; object-fit: contain; }
+.cname { font-size: 20pt; font-weight: 700; letter-spacing: 0.02em; color: #000; line-height: 1.1; }
+.regs { font-size: 8.5pt; font-weight: 700; color: #000; margin-top: 0.8mm; }
+.regs .sep { margin: 0 2mm; }
+.web { font-size: 8.5pt; color: #333; }
+.hright { text-align: right; font-size: 8.5pt; line-height: 1.45; color: #222; }
+.hright .addr { font-weight: 700; color: #000; font-size: 8pt; }
+
+.page-footer { position: fixed; bottom: 0; left: 0; right: 0; border-top: 0.8pt solid #000; padding-top: 2mm; font-size: 7.5pt; color: #222; text-align: center; line-height: 1.3; }
+.page-footer b { color: #000; }
+.page-footer .dot { margin: 0 1.6mm; color: #000; }
+
+.header-space { height: 24.5mm; }
+.footer-space { height: 10mm; }
+
+.meta-row { border-bottom: 0.5pt solid var(--rule); padding-bottom: 1.6mm; margin-bottom: 3.5mm; }
+.body th, .body td { border-color: var(--rule); }
+.body th { background: #efefef; }
+
+.sigbox { width: 70mm; border-top: 1pt solid #000; padding: 2.5mm 2mm 0; }
 .sig-for { font-size: 9.5pt; }
 .sig-area { height: 21mm; margin: 1mm 0; }
 .signature { max-height: 21mm; max-width: 50mm; }
 .seal { right: 0; top: 0; width: 21mm; height: 21mm; }
 .sig-name { font-size: 10.5pt; }
 .sig-desig, .sig-role { font-size: 9pt; }
-.sig-role { color: inherit; }
 
-html[data-size="A5"] .header-space { height: 30mm; }
-html[data-size="A5"] .footer-space { height: 16mm; }
+/* A5 */
+html[data-size="A5"] .logo { height: 11mm; max-width: 22mm; }
+html[data-size="A5"] .cname { font-size: 13pt; white-space: nowrap; }
+html[data-size="A5"] .regs, html[data-size="A5"] .web { font-size: 7pt; }
+html[data-size="A5"] .hright { font-size: 6.8pt; }
+html[data-size="A5"] .hright .addr { font-size: 6.5pt; }
+html[data-size="A5"] .page-footer { font-size: 6.3pt; }
+html[data-size="A5"] .header-space { height: 20.5mm; }
+html[data-size="A5"] .footer-space { height: 12mm; }
 html[data-size="A5"] .closing-left { font-size: 0.82em; padding-right: 3mm; }
 html[data-size="A5"] .sigbox { width: 58mm; }
 html[data-size="A5"] .sig-area { height: 17mm; }

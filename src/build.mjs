@@ -5,6 +5,7 @@
 //   node src/build.mjs --new <slug> [--template X --size A5]
 //   node src/build.mjs company/letters/<file>.md [--open] [--no-pdf]
 //   node src/build.mjs --all | --blank | --index
+//   node src/build.mjs --preview [--open]               sample letter in every template + size, with a gallery page
 //   node src/build.mjs --trim-svg <in.svg> [out.svg]   crop an SVG's canvas tightly to its artwork
 import fs from 'node:fs';
 import os from 'node:os';
@@ -17,9 +18,10 @@ import YAML from 'yaml';
 import { sealSvg } from './seal.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const COMPANY = path.join(ROOT, 'company');
+const COMPANY = process.env.LETTERHEAD_COMPANY_DIR ? path.resolve(process.env.LETTERHEAD_COMPANY_DIR) : path.join(ROOT, 'company'); // override to keep company data elsewhere (the docs build uses examples/acme)
 const LETTERS = path.join(COMPANY, 'letters');
-const OUT = path.join(COMPANY, 'out');
+const OUT = path.join(COMPANY, 'generated');   // everything the tool builds (drafts and finals)
+const APPROVED = path.join(COMPANY, 'approved'); // copies the user has signed off (npm run approve)
 const CONFIG_FILE = path.join(COMPANY, 'config.json');
 const TEMPLATE_DIRS = [path.join(ROOT, 'templates'), path.join(COMPANY, 'templates')]; // company/ overrides built-ins
 
@@ -57,7 +59,7 @@ function listTemplates() {
 }
 
 function resolveLook(template, size) {
-  const id = template || config.defaultTemplate || 'boxed';
+  const id = template || config.defaultTemplate || 'classic';
   const tpl = listTemplates().find((t) => t.id === id);
   if (!tpl) throw new Error(`Unknown template "${id}". Available: ${listTemplates().map((t) => t.id).join(', ')}`);
   const sizeKey = String(size || config.defaultSize || 'A4').toUpperCase();
@@ -177,16 +179,35 @@ function closingHtml(meta) {
   </div>`;
 }
 
-function renderHtml({ meta = {}, body = '' }, { blank = false, look } = {}) {
+// Runs in the page: estimates how many printed pages the letter needs and how much room is spare.
+// Shown in the toolbar, and read by the build (data-fit="pages|spareMm") to warn about tight one-page letters.
+const FIT_SCRIPT = `<script>
+(function(){
+  function fit(){
+    var cs=getComputedStyle(document.documentElement), n=function(v){return parseFloat(cs.getPropertyValue(v))};
+    var avail=n('--ph')-n('--mt')-n('--mb'), t=document.querySelector('table.layout'); if(!t) return;
+    var h=t.getBoundingClientRect().height*25.4/96, pages=Math.max(1,Math.ceil(h/avail-0.001)), spare=+(pages*avail-h).toFixed(1);
+    document.documentElement.setAttribute('data-fit',pages+'|'+spare);
+    var el=document.getElementById('tbfit'); if(!el) return;
+    var need=n('--ph')>=290?18:6, tight=pages===1&&spare<need;
+    el.textContent=(pages===1?'1 page · '+spare+' mm spare':'about '+pages+' pages · '+spare+' mm free on the last')+(tight?(n('--ph')>=290?' · fits A4 but may split on Letter paper or in Safari: choose A4, or shorten':' · tight: may spill onto a 2nd page'):'');
+    el.className='tb-fit'+(tight?' warn':'');
+  }
+  addEventListener('load',fit); if(document.fonts&&document.fonts.ready) document.fonts.ready.then(fit);
+})();
+</script>`;
+
+function renderHtml({ meta = {}, body = '' }, { blank = false, look, pdfName = null } = {}) {
   const c = config.company;
   const b = { accent: '#1F3A93', text: '#1F2328', muted: '#5B6472', border: '#2B2F36', boxBorder: '#8A94A6', ...config.brand };
   const logo = assetUri(config.logo);
   if (!logo) console.warn(`  ! logo not found (${config.logo}) — header will show without logo`);
   const regs = Object.entries(c.registrations || {}).filter(([, v]) => v);
+  const nameScale = Math.min(1, Math.max(0.55, 28 / String(c.name).length)); // long company names shrink to stay on one line, so the header keeps its height
   const sz = SIZES[look.sizeKey];
   const [mt, mr, mb, ml] = sz.m;
   let css = [
-    `@page { size: ${sz.w}mm ${sz.h}mm; margin: ${mt}mm ${mr}mm ${mb}mm ${ml}mm; }`,
+    `@page { size: ${sz.w}mm ${sz.h}mm; margin: ${mt}mm 0 ${mb}mm 0; }`,
     `:root{--fs:${sz.fs};--pw:${sz.w}mm;--ph:${sz.h}mm;--mt:${mt}mm;--mr:${mr}mm;--mb:${mb}mm;--ml:${ml}mm;` +
       `--accent:${b.accent};--text:${b.text};--muted:${b.muted};--border:${b.border};--box-border:${b.boxBorder};}`,
     fs.readFileSync(path.join(ROOT, 'src', 'base.css'), 'utf8'),
@@ -206,7 +227,7 @@ function renderHtml({ meta = {}, body = '' }, { blank = false, look } = {}) {
     .replace(/<p>\s*@@SIGNATURE@@\s*<\/p>/g, atMarker ? `<div class="inline-sign">${sigHtml}</div>` : '');
   const marks = blank ? '' : pageMarksHtml(meta);
   if (meta.page_numbers) {
-    css += '\n@page { @bottom-right { content: "Page " counter(page) " of " counter(pages); font: 8pt Carlito, Calibri, sans-serif; color: #5B6472; } }';
+    css += `\n@page { @bottom-center { content: "Page " counter(page) " of " counter(pages); font: 8pt Carlito, Calibri, sans-serif; color: #5B6472; text-align: right; padding-right: ${mr}mm; vertical-align: middle; } }`;
   }
 
   const letter = blank ? '' : `
@@ -220,7 +241,7 @@ function renderHtml({ meta = {}, body = '' }, { blank = false, look } = {}) {
     ${atMarker ? '' : sigHtml}`;
 
   const title = [meta.ref, meta.subject].filter(Boolean).join(' - ').replace(/[\\/:*?"<>|]+/g, '-') || `${c.name} letterhead`;
-  const tip = 'In the print dialog: Destination “Save as PDF”, Margins “Default”, Scale 100%, Headers and footers OFF.';
+  const tip = 'Print settings: Paper size A4, Margins Default, Scale 100%, Headers and footers OFF.';
 
   return `<!doctype html>
 <html lang="en" data-size="${look.sizeKey}"><head><meta charset="utf-8">
@@ -230,7 +251,9 @@ function renderHtml({ meta = {}, body = '' }, { blank = false, look } = {}) {
 <body>
   <div class="toolbar">
     <div class="tb-title">${esc(meta.ref || 'Letterhead')}${meta.subject ? ` · ${esc(meta.subject)}` : ''}</div>
+    ${blank ? '' : '<div class="tb-fit" id="tbfit"></div>'}
     <div class="tb-tip">${esc(tip)}</div>
+    ${pdfName ? `<a class="btn" href="${esc(pdfName)}" download>Download PDF</a>` : ''}
     <button type="button" onclick="window.print()">Print / Save as PDF</button>
   </div>
   <div class="sheet">
@@ -239,7 +262,7 @@ function renderHtml({ meta = {}, body = '' }, { blank = false, look } = {}) {
       <div class="hleft">
         ${logo ? `<img class="logo" src="${logo}" alt="">` : ''}
         <div>
-          <div class="cname">${esc(c.name)}</div>
+          <div class="cname"${nameScale < 1 ? ` style="zoom:${nameScale.toFixed(2)};white-space:nowrap"` : ''}>${esc(c.name)}</div>
           ${regs.length ? `<div class="regs">${regs.map(([k, v]) => `${esc(k)}: ${esc(v)}`).join('<span class="sep">|</span>')}</div>` : ''}
           ${c.website ? `<div class="web">${esc(c.website)}</div>` : ''}
         </div>
@@ -266,6 +289,7 @@ function renderHtml({ meta = {}, body = '' }, { blank = false, look } = {}) {
     <tfoot><tr><td><div class="footer-space"></div>${marks ? '<div class="marks-space"></div>' : ''}</td></tr></tfoot>
   </table>
   </div>
+${blank ? '' : FIT_SCRIPT}
 </body></html>`;
 }
 
@@ -299,6 +323,15 @@ function openFile(file) {
   try { execFileSync(cmd, args, { stdio: 'ignore' }); } catch { console.log(`  (open it manually: ${file})`); }
 }
 
+// Loads the page in headless Chrome and reads the fit estimate the page computed about itself.
+function measureFit(htmlFile) {
+  const chrome = findChrome();
+  if (!chrome) return null;
+  const res = spawnSync(chrome, ['--headless=new', '--disable-gpu', '--no-first-run', '--virtual-time-budget=3000', '--dump-dom', `file://${path.resolve(htmlFile)}`], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  const m = (res.stdout || '').match(/data-fit="(\d+)\|(-?[\d.]+)"/);
+  return m ? { pages: +m[1], spare: +m[2] } : null;
+}
+
 let chromeNoticeShown = false;
 function build(file, { blank = false, open = false, pdf = true, template, size } = {}) {
   const letter = blank ? { meta: {}, body: '' } : parseLetter(file);
@@ -308,8 +341,15 @@ function build(file, { blank = false, open = false, pdf = true, template, size }
   fs.mkdirSync(outDir, { recursive: true });
   const htmlFile = path.join(outDir, `${name}.html`);
   const pdfFile = path.join(outDir, `${name}.pdf`);
-  fs.writeFileSync(htmlFile, renderHtml(letter, { blank, look }));
+  const canPdf = pdf && !!findChrome();
+  fs.writeFileSync(htmlFile, renderHtml(letter, { blank, look, pdfName: canPdf ? `${name}.pdf` : null }));
   console.log(`✓ ${path.relative(ROOT, htmlFile)}`);
+  if (!blank) {
+    const fit = measureFit(htmlFile);
+    const need = look.sizeKey === 'A4' ? 18 : 6; // A4 letters should also fit US Letter paper (about 18 mm shorter), which Safari often defaults to
+    if (fit && fit.pages === 1 && fit.spare < need) console.warn(`  ! only ${fit.spare} mm spare on the page. It fits A4 but may split onto a 2nd page on Letter paper or in Safari. Shorten the text a little (aim for ${need}+ mm).`);
+    else if (fit && fit.pages === 1) console.log(`  (1 page, ${fit.spare} mm spare)`);
+  }
 
   if (pdf) {
     const chrome = findChrome();
@@ -384,30 +424,120 @@ Write the letter here. **Markdown** works: lists, bold, tables.
   console.log(`✓ created ${path.relative(ROOT, file)}`);
 }
 
-// ---------- archive index ----------
-function buildIndex() {
-  fs.mkdirSync(OUT, { recursive: true });
-  const rows = (fs.existsSync(LETTERS) ? fs.readdirSync(LETTERS) : []).filter((f) => f.endsWith('.md')).map((f) => {
-    const name = f.replace(/\.md$/, '');
-    const { meta } = parseLetter(path.join(LETTERS, f));
-    return { name, ref: meta.ref || '', date: meta.date ? String(meta.date).slice(0, 10) : '', to: String(meta.to || '').split('\n')[0],
-      subject: meta.subject || '', html: fs.existsSync(path.join(OUT, `${name}.html`)), pdf: fs.existsSync(path.join(OUT, `${name}.pdf`)) };
-  }).sort((a, b) => (b.date + b.ref).localeCompare(a.date + a.ref));
-  const link = (ok, href, label) => (ok ? `<a href="${esc(href)}">${label}</a>` : '');
-  fs.writeFileSync(path.join(OUT, 'index.html'), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${esc(config.company.name)} - Letters</title>
-<style>
- body{font:15px/1.5 -apple-system,'Segoe UI',Roboto,sans-serif;margin:0;background:#f4f5f7;color:#1f2328}
+// ---------- archive index + approval ----------
+const INDEX_CSS = `body{font:15px/1.5 -apple-system,'Segoe UI',Roboto,sans-serif;margin:0;background:#f4f5f7;color:#1f2328}
  main{max-width:1000px;margin:0 auto;padding:32px 20px}
  h1{font-size:20px;margin:0 0 4px} p{color:#5b6472;margin:0 0 20px}
  table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #dde1e7;border-radius:8px;overflow:hidden}
  th,td{text-align:left;padding:10px 14px;border-bottom:1px solid #eceef2;vertical-align:top} th{background:#fafbfc;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#5b6472}
  tr:last-child td{border-bottom:none} a{color:#0b5fff;text-decoration:none;margin-right:10px} .muted{color:#5b6472}
-</style></head><body><main>
-<h1>${esc(config.company.name)} - Letters</h1><p>${rows.length} letter${rows.length === 1 ? '' : 's'}. Generated automatically; do not edit.</p>
-<table><thead><tr><th>Ref</th><th>Date</th><th>To</th><th>Subject</th><th>Open</th></tr></thead><tbody>
-${rows.map((r) => `<tr><td>${esc(r.ref)}</td><td>${esc(r.date)}</td><td>${esc(r.to)}</td><td>${esc(r.subject)}</td><td>${link(r.html, r.name + '.html', 'View / Print')}${link(r.pdf, r.name + '.pdf', 'PDF')}</td></tr>`).join('') || '<tr><td colspan="5" class="muted">No letters yet.</td></tr>'}
+ .ok{color:#137333;font-weight:600} .draft{color:#8a6d00}`;
+
+function indexRows(dir, onlyApproved) {
+  return (fs.existsSync(LETTERS) ? fs.readdirSync(LETTERS) : []).filter((f) => f.endsWith('.md')).map((f) => {
+    const name = f.replace(/\.md$/, '');
+    const { meta } = parseLetter(path.join(LETTERS, f));
+    return { name, ref: meta.ref || '', date: meta.date ? String(meta.date).slice(0, 10) : '', to: String(meta.to || '').split('\n')[0],
+      subject: meta.subject || '', html: fs.existsSync(path.join(dir, `${name}.html`)), pdf: fs.existsSync(path.join(dir, `${name}.pdf`)),
+      approved: fs.existsSync(path.join(APPROVED, `${name}.md`)) };
+  }).filter((r) => (onlyApproved ? r.approved : true)).sort((a, b) => (b.date + b.ref).localeCompare(a.date + a.ref));
+}
+
+function writeIndex(dir, title, intro, rows, showStatus) {
+  fs.mkdirSync(dir, { recursive: true });
+  const link = (ok, href, label) => (ok ? `<a href="${esc(href)}">${label}</a>` : '');
+  fs.writeFileSync(path.join(dir, 'index.html'), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(config.company.name)} - ${esc(title)}</title><style>${INDEX_CSS}</style></head><body><main>
+<h1>${esc(config.company.name)} - ${esc(title)}</h1><p>${rows.length} letter${rows.length === 1 ? '' : 's'}. ${esc(intro)}</p>
+<table><thead><tr><th>Ref</th><th>Date</th><th>To</th><th>Subject</th>${showStatus ? '<th>Status</th>' : ''}<th>Open</th></tr></thead><tbody>
+${rows.map((r) => `<tr><td>${esc(r.ref)}</td><td>${esc(r.date)}</td><td>${esc(r.to)}</td><td>${esc(r.subject)}</td>${showStatus ? `<td>${r.approved ? '<span class="ok">Approved</span>' : '<span class="draft">Draft</span>'}</td>` : ''}<td>${link(r.html, r.name + '.html', 'View / Print')}${link(r.pdf, r.name + '.pdf', 'PDF')}</td></tr>`).join('') || `<tr><td colspan="${showStatus ? 6 : 5}" class="muted">No letters yet.</td></tr>`}
 </tbody></table></main></body></html>`);
+}
+
+function buildIndex() {
+  writeIndex(OUT, 'Generated letters', 'Everything the tool has built, drafts and finals. Open a letter to review it; the final, signed-off copies are in the approved folder.', indexRows(OUT, false), true);
+  if (fs.existsSync(APPROVED)) writeIndex(APPROVED, 'Approved letters', 'Final copies that have been signed off. These are the ones to send. Do not edit them.', indexRows(APPROVED, true), false);
+}
+
+// Copy a reviewed letter (HTML + PDF + its source text) into company/approved/.
+function approve(nameArg, force) {
+  const base = path.basename(String(nameArg)).replace(/\.(md|html|pdf)$/i, '');
+  const src = path.join(LETTERS, `${base}.md`);
+  if (!fs.existsSync(src)) throw new Error(`No letter "${base}" in company/letters/. Names look like 2026-11-23-my-letter.`);
+  const { meta, body } = parseLetter(src);
+  if (/Write the letter here|Recipient Name \/ Designation|^Subject of the letter$/m.test(`${body}\n${meta.to || ''}\n${meta.subject || ''}`)) {
+    throw new Error('This letter still has the template placeholder text. Fill it in before approving.');
+  }
+  if (!force && fs.existsSync(path.join(APPROVED, `${base}.md`))) {
+    throw new Error(`${base} is already approved. Approved copies are final: issue a new letter for changes (or add --force to replace it).`);
+  }
+  build(src, { pdf: true }); // approve exactly what the current text produces
+  fs.mkdirSync(APPROVED, { recursive: true });
+  fs.copyFileSync(src, path.join(APPROVED, `${base}.md`));
+  for (const ext of ['html', 'pdf']) {
+    const from = path.join(OUT, `${base}.${ext}`);
+    if (fs.existsSync(from)) fs.copyFileSync(from, path.join(APPROVED, `${base}.${ext}`));
+    else console.warn(`  ! no ${ext.toUpperCase()} to copy (${ext === 'pdf' ? 'Chrome/Edge not found' : 'build failed'})`);
+  }
+  buildIndex();
+  console.log(`✓ approved: ${path.relative(ROOT, path.join(APPROVED, base))}.pdf`);
+}
+
+// ---------- template preview gallery ----------
+function preview(open, outDir, png) {
+  const dir = outDir ? path.resolve(outDir) : path.join(OUT, 'preview');
+  fs.mkdirSync(dir, { recursive: true });
+  const sample = {
+    meta: { ref: `${config.refPrefix || 'REF'}/SAMPLE/001`, date: new Date().toISOString().slice(0, 10), to: 'The Branch Manager\nSample Bank, Main Branch\n1 Example Road, City 000000',
+      subject: 'Sample letter to preview this template', sign: true, seal: true, enclosures: ['Document A', 'Document B'] },
+    body: `Dear Sir / Madam,\n\nThis is a sample letter so you can see how this template looks with real content: spacing, the header and footer, a table, and the signature block.\n\n| Item | Detail |\n|------|--------|\n| Sample row | Sample value |\n| Another row | Another value |\n\nThank you.\n`,
+  };
+  const cards = [];
+  for (const t of listTemplates()) {
+    const links = [];
+    for (const size of t.sizes.filter((z) => SIZES[z])) {
+      const look = resolveLook(t.id, size);
+      fs.writeFileSync(path.join(dir, `${t.id}-${size}.html`), renderHtml({ ...sample, meta: { ...sample.meta, template: t.id, size } }, { look }));
+      links.push(size);
+    }
+    cards.push({ t, links });
+  }
+  fs.writeFileSync(path.join(dir, 'index.html'), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(config.company.name)} - Templates</title>
+<style>
+ body{font:15px/1.5 -apple-system,'Segoe UI',Roboto,sans-serif;margin:0;background:#eef0f4;color:#1f2328}
+ main{max-width:1280px;margin:0 auto;padding:28px 20px}
+ h1{font-size:20px;margin:0 0 4px} .sub{color:#5b6472;margin:0 0 22px}
+ .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:22px}
+ .card{background:#fff;border:1px solid #dde1e7;border-radius:10px;padding:16px}
+ .card h2{font-size:16px;margin:0 0 2px} .card p{margin:0 0 12px;color:#5b6472;font-size:13px;min-height:58px}
+ .thumb{width:100%;aspect-ratio:840/1240;border:1px solid #dde1e7;border-radius:6px;overflow:hidden;position:relative;background:#e6e9ef}
+ .thumb iframe{position:absolute;top:0;left:0;width:840px;height:1240px;border:0;transform-origin:0 0;pointer-events:none}
+ .links{margin-top:12px} .links a{display:inline-block;margin-right:8px;padding:6px 12px;border-radius:6px;background:#0b5fff;color:#fff;text-decoration:none;font-weight:600;font-size:13px}
+ .links a.alt{background:#fff;color:#0b5fff;border:1px solid #0b5fff;padding:5px 11px}
+</style></head><body><main>
+<h1>${esc(config.company.name)} - Letter templates</h1>
+<p class="sub">Sample letter in each look. Click to open full size (with the Print / Save as PDF button). Default: <b>${esc(config.defaultTemplate || 'classic')}</b>. Use one with <code>--template &lt;id&gt;</code>.</p>
+<div class="grid">${cards.map(({ t, links }) => `<div class="card"><h2>${esc(t.title)} <span style="color:#8a94a6;font-weight:400">(${esc(t.id)})</span></h2><p>${esc(t.description)}</p>
+<div class="thumb"><iframe src="${esc(t.id)}-A4.html" loading="lazy" tabindex="-1" title="${esc(t.title)}"></iframe></div>
+<div class="links">${links.map((z, i) => `<a class="${i ? 'alt' : ''}" href="${esc(t.id)}-${z}.html">${z}</a>`).join('')}</div></div>`).join('')}</div>
+</main><script>
+function fit(){document.querySelectorAll('.thumb').forEach(function(t){t.querySelector('iframe').style.transform='scale('+(t.clientWidth/840)+')'})}
+addEventListener('load',fit);addEventListener('resize',fit);
+</script></body></html>`);
+  console.log(`✓ ${path.relative(ROOT, path.join(dir, 'index.html'))}  (${cards.length} templates)`);
+  if (png) {
+    const chrome = findChrome();
+    if (!chrome) console.warn('  ! no Chrome/Edge found, so no PNG previews were made');
+    else for (const { t } of cards) {
+      const tmp = path.join(os.tmpdir(), `shot-${process.pid}-${t.id}.html`);
+      fs.writeFileSync(tmp, fs.readFileSync(path.join(dir, `${t.id}-A4.html`), 'utf8').replace('</head>', '<style>.toolbar{display:none!important}html{background:#fff!important}body{padding:0!important}.sheet{box-shadow:none!important}</style></head>'));
+      spawnSync(chrome, ['--headless=new', '--hide-scrollbars', '--force-device-scale-factor=2', '--window-size=794,1123', '--virtual-time-budget=3000', `--screenshot=${path.join(dir, `${t.id}.png`)}`, `file://${tmp}`], { stdio: 'ignore' });
+      fs.rmSync(tmp, { force: true });
+      console.log(`✓ ${path.relative(ROOT, path.join(dir, `${t.id}.png`))}`);
+    }
+  }
+  if (open) openFile(path.join(dir, 'index.html'));
 }
 
 // ---------- SVG helpers ----------
@@ -507,7 +637,7 @@ const { values: v, positionals: files } = parseArgs({
   allowPositionals: true,
   options: {
     new: { type: 'boolean' }, blank: { type: 'boolean' }, all: { type: 'boolean' }, templates: { type: 'boolean' },
-    doctor: { type: 'boolean' }, index: { type: 'boolean' }, 'trim-svg': { type: 'boolean' }, open: { type: 'boolean' }, 'no-pdf': { type: 'boolean' },
+    doctor: { type: 'boolean' }, approve: { type: 'boolean' }, force: { type: 'boolean' }, index: { type: 'boolean' }, 'trim-svg': { type: 'boolean' }, preview: { type: 'boolean' }, png: { type: 'boolean' }, out: { type: 'string' }, open: { type: 'boolean' }, 'no-pdf': { type: 'boolean' },
     template: { type: 'string' }, size: { type: 'string' },
   },
 });
@@ -523,19 +653,24 @@ try {
     for (const t of listTemplates()) console.log(`${t.id.padEnd(8)} ${t.title}${t.custom ? ' (company)' : ''}: ${t.description}\n         sizes: ${t.sizes.join(', ')}`);
   } else {
     loadConfig();
-    if (v.new) {
+    if (v.approve) {
+      if (!files[0]) throw new Error('Usage: npm run approve -- <letter-name>   e.g. 2026-11-23-my-letter');
+      approve(files[0], v.force);
+    } else if (v.preview) {
+      preview(v.open, v.out, v.png);
+    } else if (v.new) {
       if (!files[0]) throw new Error('Usage: npm run new -- <slug> [--template X] [--size A4|A5]');
       scaffold(files[0], v.template, v.size);
     } else if (v.blank) {
       build(null, { ...opts, blank: true });
     } else if (v.index) {
-      buildIndex(); console.log('✓ company/out/index.html'); if (v.open) openFile(path.join(OUT, 'index.html'));
+      buildIndex(); console.log('✓ company/generated/index.html'); if (v.open) openFile(path.join(OUT, 'index.html'));
     } else if (v.all) {
       fs.readdirSync(LETTERS).filter((f) => f.endsWith('.md')).forEach((f) => build(path.join(LETTERS, f), opts));
     } else if (files.length) {
       files.forEach((f) => build(path.resolve(f), opts));
     } else {
-      console.log('Usage: npm run letter -- company/letters/<file>.md [--open] [--no-pdf] [--template X] [--size A5]\n       npm run new -- <slug> [--template X] [--size A5]\n       npm run doctor | templates | blank | all | index | trim-svg');
+      console.log('Usage: npm run letter -- company/letters/<file>.md [--open] [--no-pdf] [--template X] [--size A5]\n       npm run new -- <slug> [--template X] [--size A5]\n       npm run doctor | templates | preview | blank | all | index | approve | trim-svg');
     }
   }
 } catch (e) {

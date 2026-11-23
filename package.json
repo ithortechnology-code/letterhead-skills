@@ -10,7 +10,10 @@
     "blank": "node src/build.mjs --blank",
     "all": "node src/build.mjs --all",
     "index": "node src/build.mjs --index",
-    "trim-svg": "node src/build.mjs --trim-svg"
+    "trim-svg": "node src/build.mjs --trim-svg",
+    "preview": "node src/build.mjs --preview",
+    "docs": "node --env-file=examples/acme/acme.env src/build.mjs --preview --out docs/templates --png",
+    "approve": "node src/build.mjs --approve"
   },
   "type": "module",
   "dependencies": {

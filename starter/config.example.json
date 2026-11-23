@@ -21,7 +21,7 @@
   "refPrefix": "ACME",
   "refScheme": "fy",
   "place": "Pune, India",
-  "defaultTemplate": "boxed",
+  "defaultTemplate": "classic",
   "defaultSize": "A4",
   "watermark": false,
   "seal": {

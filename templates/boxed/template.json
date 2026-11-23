@@ -1,5 +1,8 @@
 {
   "title": "Boxed",
-  "description": "Formal framed header (logo, LLPNO/GSTIN, contact box) and a framed signature box. Default for official letters, undertakings, declarations.",
-  "sizes": ["A4", "A5"]
+  "description": "Formal framed header (logo, registration numbers, contact box) and a framed signature box. For official letters, undertakings and declarations where a traditional boxed look is wanted.",
+  "sizes": [
+    "A4",
+    "A5"
+  ]
 }

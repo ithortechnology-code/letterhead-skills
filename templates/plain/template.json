@@ -1,5 +1,5 @@
 {
-  "title": "Plain (pre-printed paper)",
-  "description": "No header or footer, just generous top/bottom space. Use when printing on pre-printed company letterhead stationery.",
+  "title": "Plain (black and white)",
+  "description": "Black-and-white letterhead with the full header and footer, as a photocopy or scan of the printed letterhead would look. No colour anywhere; logo, seal and stamp are forced to black and white. Good for photocopying, faxing and mono printers.",
   "sizes": ["A4", "A5"]
 }

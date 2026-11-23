@@ -13,7 +13,7 @@ Requires a finished setup. If `company/config.json` is missing, run the `setup-l
 2. **Look.** If the user named a template/size, use it. Otherwise use the config defaults and say which you used
    (`npm run templates` lists the options; mention alternatives in one line).
 3. **Scaffold:** `npm run new -- <short-slug> --template <id> --size <A4|A5>`.
-   Creates `company/letters/YYYY-MM-DD-<slug>.md` with the next reference number. Never type reference numbers by hand.
+   Creates `company/letters/YYYY-MM-DD-<slug>.md` (the source) and, when built, `company/generated/<same-name>.html` and `.pdf` (drafts for review) with the next reference number. Never type reference numbers by hand.
 4. **Write the letter** into that file: fill `to`, `subject`, `date` if not today, `enclosures`, `cc`, and the Markdown body.
 5. **Signing.** Default is **no signature image**: the block has the name and blank space for a hand signature
    (right for normal communications). Add signature/seal only when the user asks or confirms. If the letter is more
@@ -21,13 +21,14 @@ Requires a finished setup. If `company/config.json` is missing, run the `setup-l
    *"How should it be signed? (a) no signature, (b) signature + seal on the last page, (c) small signature on every page
    and signature + seal on the last, (d) signature + seal on the first/cover page and a small signature on every other page,
    (e) first page only, (f) small signature and seal on every page."* Then use the table below.
-6. **Build:** `npm run letter -- company/letters/<file>.md --open`. This writes `company/out/<file>.html` (self-contained,
-   has a Print / Save as PDF button), a PDF copy if Chrome/Edge is installed, and refreshes `company/out/index.html`.
-7. **Check it.** The build prints the PDF page count. Confirm it fits sensibly (short letter on one page). If it is more
+6. **Build:** `npm run letter -- company/letters/<file>.md --open`. This writes `company/generated/<file>.html` (self-contained,
+   has a Print / Save as PDF button), a PDF copy if Chrome/Edge is installed, and refreshes `company/generated/index.html`.
+7. **Check it.** The build prints the PDF page count and spare room. For a one-page A4 letter aim for **18+ mm spare**, so it also fits US Letter paper (about 18 mm shorter) which Safari often defaults to; otherwise shorten the text. Confirm it fits sensibly (short letter on one page). If it is more
    than one page and the user hasn't said how to sign, ask the signing question now, and turn on `page_numbers: true`.
    Fix wording or suggest A4 over A5 rather than hacking the layout.
-8. Tell the user the file path, and remind them: print dialog → Margins "Default", Scale 100%, Headers and footers off.
-9. Offer to commit in `company/` (it is a separate git repo): `git -C company add -A && git -C company commit -m "<ref> <subject>"`.
+8. Tell the user the file path. The page has a **Download PDF** button (the exact one-page file the build checked) and a Print button; for printing: paper A4, Scale 100%, Headers and footers off (in Safari set Paper Size to A4).
+9. **Approval.** The letter is a draft until the user says it's approved/final. Then run `npm run approve -- <letter-name>`: it copies the HTML, PDF and source text into `company/approved/` and marks it Approved in the indexes. Tell the user the approved copy is the one to send. Never edit or re-approve an approved letter; a change after approval is a new letter with a new reference (unless the user explicitly says to replace it, then `--force`).
+10. Offer to commit in `company/` (it is a separate git repo): `git -C company add -A && git -C company commit -m "<ref> <subject>"`.
    Only commit/push when asked.
 
 ## Signing and multi-page options
@@ -75,7 +76,7 @@ to: |
   Organisation
   Address
 subject: ...
-template: boxed           # built-ins: boxed | modern | plain (+ any in company/templates)
+template: classic         # built-ins: classic | boxed | modern | plain (black & white) | stationery (pre-printed paper) (+ any in company/templates)
 size: A4                  # A4 | A5
 signatory: default        # key in company/config.json → signatories
 sign: false
@@ -89,7 +90,7 @@ cc: [Name]
 closing: Yours faithfully,   # optional line above the signature box
 signoff: false               # omit signature block entirely
 ```
-Body is Markdown: paragraphs, lists, tables, bold.
+Body is Markdown: paragraphs, lists, tables, bold. **Quote front-matter values that contain a colon**, e.g. `subject: "Declaration: ..."`, or the file will not parse.
 
 ## Writing rules
 - **Never invent** dates, amounts, legal clauses, registration numbers or names. Use what the user gave; put `[placeholder]`

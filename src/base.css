@@ -19,7 +19,7 @@ b, strong { font-weight: 700; }
 
 /* Table trick: thead/tfoot repeat on every page and reserve room for the fixed header/footer */
 table.layout { width: 100%; border-collapse: collapse; }
-table.layout > * > tr > td { padding: 0; }
+table.layout > * > tr > td { padding: 0 var(--mr) 0 var(--ml); }   /* left/right margins live in the layout (survive Chrome's "Margins: None"); top/bottom are real @page margins */
 
 /* Letter content */
 .meta-row { display: flex; justify-content: space-between; font-size: 0.95em; margin-bottom: 1mm; }

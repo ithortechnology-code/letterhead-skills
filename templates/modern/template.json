@@ -1,5 +1,8 @@
 {
   "title": "Modern",
-  "description": "Clean open header with a magenta accent rule top and bottom, minimal signature block. Good for proposals, quotations and business correspondence.",
-  "sizes": ["A4", "A5"]
+  "description": "Open header with a thick accent-colour rule top and bottom and a minimal signature block. Good for proposals, quotations and business correspondence.",
+  "sizes": [
+    "A4",
+    "A5"
+  ]
 }

@@ -1,0 +1,23 @@
+/* STATIONERY — no printed header/footer; leaves clear space for pre-printed letterhead paper. */
+.page-header { display: none; }
+.page-footer { visibility: hidden; border-top-color: transparent; }   /* keep footer geometry so page marks line up */
+.page-footer .page-marks { visibility: visible; }
+.header-space { height: 38mm; }   /* adjust to match your pre-printed paper */
+.footer-space { height: 22mm; }
+
+.sigbox { width: 70mm; padding: 2mm; }
+.sig-for { font-size: 9.5pt; }
+.sig-area { height: 21mm; margin: 1mm 0; }
+.signature { max-height: 21mm; max-width: 50mm; }
+.seal { right: 0; top: 0; width: 21mm; height: 21mm; }
+.sig-name { font-size: 10.5pt; }
+.sig-desig, .sig-role { font-size: 9pt; }
+.sig-role { color: inherit; }
+
+html[data-size="A5"] .header-space { height: 30mm; }
+html[data-size="A5"] .footer-space { height: 16mm; }
+html[data-size="A5"] .closing-left { font-size: 0.82em; padding-right: 3mm; }
+html[data-size="A5"] .sigbox { width: 58mm; }
+html[data-size="A5"] .sig-area { height: 17mm; }
+html[data-size="A5"] .signature { max-height: 17mm; max-width: 40mm; }
+html[data-size="A5"] .seal { width: 17mm; height: 17mm; }

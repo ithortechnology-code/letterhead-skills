@@ -8,21 +8,27 @@
     background: #1f2328; color: #fff; font: 13px/1.3 -apple-system, 'Segoe UI', Roboto, sans-serif;
   }
   .tb-title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 32%; }
+  .tb-fit { font-size: 12px; color: #aab2bf; white-space: nowrap; }
+  .tb-fit.warn { color: #ffb454; font-weight: 600; }
   .tb-tip { flex: 1; color: #aab2bf; font-size: 12px; }
   .toolbar button {
     font: inherit; font-weight: 600; color: #fff; background: #0b5fff; border: 0; border-radius: 6px;
     padding: 8px 14px; cursor: pointer; white-space: nowrap;
   }
   .toolbar button:hover { background: #2a74ff; }
+  .toolbar a.btn { font: inherit; font-weight: 600; color: #fff; border: 1px solid #6b7686; border-radius: 6px; padding: 7px 12px; text-decoration: none; white-space: nowrap; }
+  .toolbar a.btn:hover { background: #343b45; }
   .sheet {
-    position: relative; width: var(--pw); min-height: var(--ph); margin: 0 auto;
-    padding: var(--mt) var(--mr) var(--mb) var(--ml);
+    position: relative; width: var(--pw); min-height: var(--ph); margin: 0 auto; padding: var(--mt) 0 var(--mb) 0;
     background: #fff; box-shadow: 0 2px 18px rgba(0, 0, 0, .18);
   }
   .page-header { position: absolute; top: var(--mt); left: var(--ml); right: var(--mr); }
   .page-footer { position: absolute; bottom: var(--mb); left: var(--ml); right: var(--mr); }
-  @media (max-width: 900px) { .tb-tip { display: none; } }
+  @media (max-width: 1100px) { .tb-tip { display: none; } }
 }
 @media print {
   .toolbar { display: none; }
+  /* top/bottom page margins are real @page margins; the fixed header/footer only need their side offsets */
+  .page-header { top: 0; left: var(--ml); right: var(--mr); }
+  .page-footer { bottom: 0; left: var(--ml); right: var(--mr); }
 }
