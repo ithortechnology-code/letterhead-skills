@@ -9686,6 +9686,7 @@ function assetUri(rel2) {
   }
   return fileUri(p);
 }
+var blendCls = (uri) => /^data:image\/svg/.test(uri) ? "" : " blend";
 function fontFaces() {
   const dir = FONT_DIR || "";
   return [["400", "normal"], ["400", "italic"], ["700", "normal"], ["700", "italic"]].map(([w, s]) => [w, s, path.join(dir, `carlito-latin-${w}-${s}.woff2`)]).filter(([, , f]) => fs2.existsSync(f)).map(([w, s, f]) => `@font-face{font-family:'Carlito';font-weight:${w};font-style:${s};src:url(${fileUri(f)}) format('woff2');}`).join("\n");
@@ -9715,7 +9716,7 @@ function pageMarksHtml(meta) {
   let out = "";
   if (mode === "signature" || mode === "both") {
     const uri = assetUri(person.signature);
-    if (uri) out += `<img class="mark-sig" src="${uri}" alt="">`;
+    if (uri) out += `<img class="mark-sig${blendCls(uri)}" src="${uri}" alt="">`;
     else console.warn(`  ! page_marks needs a signature file (${person.signature}) but none was found`);
   }
   if (mode === "seal" || mode === "both") out += `<div class="mark-seal">${sealSvg({ topText: config.company.name, ...config.seal })}</div>`;
@@ -9727,7 +9728,7 @@ function closingHtml(meta) {
   let sig = "";
   if (meta.sign) {
     const uri = assetUri(person.signature);
-    if (uri) sig = `<img class="signature" src="${uri}" alt="">`;
+    if (uri) sig = `<img class="signature${blendCls(uri)}" src="${uri}" alt="">`;
     else console.warn(`  ! sign: true but no signature file found (${person.signature}). Leaving space for a wet signature.`);
   }
   const sealMode = meta.seal === true ? config.seal?.shape || "round" : ["round", "square", "both"].includes(meta.seal) ? meta.seal : null;
@@ -9799,14 +9800,18 @@ function renderHtml({ meta = {}, body = "" }, { blank = false, look, pdfName = n
     fs2.readFileSync(path.join(CSS_DIR, "screen.css"), "utf8")
     // last: browser-preview overrides
   ].join("\n");
-  const prepared = body.replace(/^[ \t]*(?:\\pagebreak|\{\{\s*pagebreak\s*\}\}|<!--\s*pagebreak\s*-->)[ \t]*$/gim, "\n\n@@PAGEBREAK@@\n\n").replace(/^[ \t]*\{\{\s*signature\s*\}\}[ \t]*$/gim, "\n\n@@SIGNATURE@@\n\n");
+  const prepared = body.replace(/^[ \t]*(?:\\pagebreak|\{\{\s*pagebreak\s*\}\}|<!--\s*pagebreak\s*-->)[ \t]*$/gim, "\n\n@@PAGEBREAK@@\n\n").replace(/^[ \t]*\{\{\s*signature\s*\}\}[ \t]*$/gim, "\n\n@@SIGNATURE@@\n\n").replace(/\{\{\s*sig:([\w-]+)\s*\}\}/g, "@@SIG:$1@@");
   let atMarker = meta.signature_at === "marker";
   if (atMarker && !prepared.includes("@@SIGNATURE@@")) {
     console.warn("  ! signature_at: marker but no {{signature}} in the body; placing the block at the end");
     atMarker = false;
   }
   const sigHtml = blank ? "" : closingHtml(meta);
-  const bodyHtml = marked.parse(prepared).replace(/<p>\s*@@PAGEBREAK@@\s*<\/p>/g, '<div class="pagebreak"></div>').replace(/<p>\s*@@SIGNATURE@@\s*<\/p>/g, atMarker ? `<div class="inline-sign">${sigHtml}</div>` : "");
+  const bodyHtml = marked.parse(prepared).replace(/<p>\s*@@PAGEBREAK@@\s*<\/p>/g, '<div class="pagebreak"></div>').replace(/@@SIG:([\w-]+)@@/g, (_, k) => {
+    const u = blank ? null : assetUri(config.signatories?.[k]?.signature);
+    if (!u) console.warn(`  ! {{sig:${k}}}: no signature image for signatory "${k}"`);
+    return u ? `<img class="inline-sig${blendCls(u)}" src="${u}" alt="">` : "";
+  }).replace(/<p>\s*@@SIGNATURE@@\s*<\/p>/g, atMarker ? `<div class="inline-sign">${sigHtml}</div>` : "");
   const marks = blank ? "" : pageMarksHtml(meta);
   if (meta.page_numbers) {
     css += `
@@ -9931,6 +9936,13 @@ function build(file, { blank = false, open = false, pdf = true, template, size }
   const canPdf = pdf && !!findChrome();
   fs2.writeFileSync(htmlFile, renderHtml(letter, { blank, look, pdfName: canPdf ? `${name}.pdf` : null }));
   console.log(`\u2713 ${rel(htmlFile)}`);
+  {
+    const h = fs2.readFileSync(htmlFile, "utf8");
+    const usesBlend = /mix-blend-mode\s*:\s*(?!normal)[a-z-]+/i.test(h.replace(/\.blend\s*\{[^}]*\}/, "")) || /class="[^"]*\bblend\b/.test(h);
+    const gradientLogo = /<img class="logo"[^>]*src="data:image\/svg\+xml;base64,([^"]+)"/.exec(h);
+    if (usesBlend && gradientLogo && /Gradient/.test(Buffer.from(gradientLogo[1], "base64").toString("utf8")))
+      console.warn("  ! this letter uses a PNG/JPG signature (blend mode) and the logo has a gradient: some PDF viewers may show the logo in a flat colour. Use an SVG signature, or check the PDF in Preview/Acrobat.");
+  }
   if (!blank) {
     const fit = measureFit(htmlFile);
     const need = look.sizeKey === "A4" ? 18 : 6;

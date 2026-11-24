@@ -35,6 +35,8 @@ front. Nothing needs installing in plugin mode.
 7. **Check it.** The build prints the PDF page count and spare room. For a one-page A4 letter aim for **18+ mm spare**, so it also fits US Letter paper (about 18 mm shorter) which Safari often defaults to; otherwise shorten the text. Confirm it fits sensibly (short letter on one page). If it is more
    than one page and the user hasn't said how to sign, ask the signing question now, and turn on `page_numbers: true`.
    Fix wording or suggest A4 over A5 rather than hacking the layout.
+   **Check the PDF as a viewer shows it, not only the browser** whenever a signature, seal or gradient logo is on the page: render the PDF
+   to an image (macOS: `sips --resampleWidth 2000 file.pdf -s format png --out x.png`) and look at the logo, signatures and stamp. Fix any build warning (`!`) before handing over.
 8. Tell the user the file path. The page has a **Download PDF** button (the exact one-page file the build checked) and a Print button; for printing: paper A4, Scale 100%, Headers and footers off (in Safari set Paper Size to A4).
 9. **Approval.** The letter is a draft until the user says it's approved/final. Then run `npm run approve -- <letter-name>`: it copies the HTML, PDF and source text into `company/approved/` and marks it Approved in the indexes. Tell the user the approved copy is the one to send. Never edit or re-approve an approved letter; a change after approval is a new letter with a new reference (unless the user explicitly says to replace it, then `--force`).
 10. Offer to commit in `company/` (it is a separate git repo): `git -C company add -A && git -C company commit -m "<ref> <subject>"`.

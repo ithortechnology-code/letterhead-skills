@@ -53,6 +53,7 @@ Then go to section 3 so the setup is saved.
    small on the rest; first page only).
 5. Build: `node scripts/letterhead.mjs company/letters/<file>.md --no-pdf`. It prints the page count and spare room. For a
    one-page A4 letter aim for **18+ mm spare**; otherwise shorten the text.
+   Heed any `!` warning from the build, and if you can render the PDF to an image, look at the logo and signatures in it.
 6. Deliver `company/generated/<file>.html` to the user as a file to download and open in a browser. Tell them: press
    **Print / Save as PDF** with paper A4, scale 100%, headers and footers off. If a PDF was also produced
    (`company/generated/<file>.pdf`, only when a browser is available here), give that too.

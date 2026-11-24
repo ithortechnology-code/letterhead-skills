@@ -92,6 +92,8 @@ function assetUri(rel) {
   return fileUri(p);
 }
 
+const blendCls = (uri) => (/^data:image\/svg/.test(uri) ? '' : ' blend');
+
 function fontFaces() {
   const dir = FONT_DIR || '';
   return [['400', 'normal'], ['400', 'italic'], ['700', 'normal'], ['700', 'italic']]
@@ -128,7 +130,7 @@ function pageMarksHtml(meta) {
   let out = '';
   if (mode === 'signature' || mode === 'both') {
     const uri = assetUri(person.signature);
-    if (uri) out += `<img class="mark-sig" src="${uri}" alt="">`;
+    if (uri) out += `<img class="mark-sig${blendCls(uri)}" src="${uri}" alt="">`;
     else console.warn(`  ! page_marks needs a signature file (${person.signature}) but none was found`);
   }
   if (mode === 'seal' || mode === 'both') out += `<div class="mark-seal">${sealSvg({ topText: config.company.name, ...config.seal })}</div>`;
@@ -142,7 +144,7 @@ function closingHtml(meta) {
   let sig = '';
   if (meta.sign) {
     const uri = assetUri(person.signature);
-    if (uri) sig = `<img class="signature" src="${uri}" alt="">`;
+    if (uri) sig = `<img class="signature${blendCls(uri)}" src="${uri}" alt="">`;
     else console.warn(`  ! sign: true but no signature file found (${person.signature}). Leaving space for a wet signature.`);
   }
   // seal: true (shape from config.seal.shape) | round | square | both | false
@@ -228,12 +230,18 @@ function renderHtml({ meta = {}, body = '' }, { blank = false, look, pdfName = n
   // Markers inside the Markdown body:  \pagebreak  (or {{pagebreak}})  and  {{signature}}
   const prepared = body
     .replace(/^[ \t]*(?:\\pagebreak|\{\{\s*pagebreak\s*\}\}|<!--\s*pagebreak\s*-->)[ \t]*$/gim, '\n\n@@PAGEBREAK@@\n\n')
-    .replace(/^[ \t]*\{\{\s*signature\s*\}\}[ \t]*$/gim, '\n\n@@SIGNATURE@@\n\n');
+    .replace(/^[ \t]*\{\{\s*signature\s*\}\}[ \t]*$/gim, '\n\n@@SIGNATURE@@\n\n')
+    .replace(/\{\{\s*sig:([\w-]+)\s*\}\}/g, '@@SIG:$1@@'); // inline signature image of a configured signatory, e.g. in a signing table
   let atMarker = meta.signature_at === 'marker';
   if (atMarker && !prepared.includes('@@SIGNATURE@@')) { console.warn('  ! signature_at: marker but no {{signature}} in the body; placing the block at the end'); atMarker = false; }
   const sigHtml = blank ? '' : closingHtml(meta);
   const bodyHtml = marked.parse(prepared)
     .replace(/<p>\s*@@PAGEBREAK@@\s*<\/p>/g, '<div class="pagebreak"></div>')
+    .replace(/@@SIG:([\w-]+)@@/g, (_, k) => {
+      const u = blank ? null : assetUri(config.signatories?.[k]?.signature);
+      if (!u) console.warn(`  ! {{sig:${k}}}: no signature image for signatory "${k}"`);
+      return u ? `<img class="inline-sig${blendCls(u)}" src="${u}" alt="">` : '';
+    })
     .replace(/<p>\s*@@SIGNATURE@@\s*<\/p>/g, atMarker ? `<div class="inline-sign">${sigHtml}</div>` : '');
   const marks = blank ? '' : pageMarksHtml(meta);
   if (meta.page_numbers) {
@@ -354,6 +362,13 @@ function build(file, { blank = false, open = false, pdf = true, template, size }
   const canPdf = pdf && !!findChrome();
   fs.writeFileSync(htmlFile, renderHtml(letter, { blank, look, pdfName: canPdf ? `${name}.pdf` : null }));
   console.log(`✓ ${rel(htmlFile)}`);
+  { // blend modes make Chrome's PDF viewers draw gradients (e.g. a gradient logo) as one flat colour
+    const h = fs.readFileSync(htmlFile, 'utf8');
+    const usesBlend = /mix-blend-mode\s*:\s*(?!normal)[a-z-]+/i.test(h.replace(/\.blend\s*\{[^}]*\}/, '')) || /class="[^"]*\bblend\b/.test(h);
+    const gradientLogo = /<img class="logo"[^>]*src="data:image\/svg\+xml;base64,([^"]+)"/.exec(h);
+    if (usesBlend && gradientLogo && /Gradient/.test(Buffer.from(gradientLogo[1], 'base64').toString('utf8')))
+      console.warn('  ! this letter uses a PNG/JPG signature (blend mode) and the logo has a gradient: some PDF viewers may show the logo in a flat colour. Use an SVG signature, or check the PDF in Preview/Acrobat.');
+  }
   if (!blank) {
     const fit = measureFit(htmlFile);
     const need = look.sizeKey === 'A4' ? 18 : 6; // A4 letters should also fit US Letter paper (about 18 mm shorter), which Safari often defaults to
